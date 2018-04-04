@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <AssemblyName>Epos.Eventing.RabbitMQ</AssemblyName>
+    <RootNamespace>Epos.Eventing.RabbitMQ</RootNamespace>
+    <AssemblyVersion>9.9.9</AssemblyVersion>
+    <AssemblyInformationalVersion>9.9.9</AssemblyInformationalVersion>
+    <PackageVersion>9.9.9</PackageVersion>
+    <Description>.NET Standard eventing library for reliable messaging with RabbitMQ (Microservices eventing)</Description>
+    <Authors>Jan Bohlen</Authors>
+    <Company>Epos</Company>
+    <PackageLicenseUrl>https://github.com/eposgmbh/Epos.Eventing/blob/master/LICENSE</PackageLicenseUrl>
+    <PackageProjectUrl>https://github.com/eposgmbh/Epos.Eventing</PackageProjectUrl>
+    <DocumentationFile>bin\$(Configuration)\$(TargetFramework)\$(AssemblyName).xml</DocumentationFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Polly" Version="5.8.0" />
+    <PackageReference Include="RabbitMQ.Client" Version="5.0.1" />
+    <PackageReference Include="Microsoft.Extensions.Logging" Version="2.0.1" />
+    <PackageReference Include="Newtonsoft.Json" Version="11.0.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Epos.Eventing\Epos.Eventing.csproj" />
+  </ItemGroup>
+
+</Project>
