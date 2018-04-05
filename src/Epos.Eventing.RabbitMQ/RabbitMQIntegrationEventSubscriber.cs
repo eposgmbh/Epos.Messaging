@@ -47,6 +47,12 @@ namespace Epos.Eventing.RabbitMQ
                 E theEvent = JsonConvert.DeserializeObject<E>(theMessage);
                 EH theHandler = (EH) myServiceProvider.GetService(typeof(EH));
 
+                if (theHandler == null) {
+                    throw new InvalidOperationException(
+                        $"Service provider does not contain an implementation for {typeof(EH).FullName}."
+                    );
+                }
+
                 await theHandler.Handle(
                     theEvent,
                     new MessagingHelper(
