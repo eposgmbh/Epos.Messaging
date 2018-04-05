@@ -4,7 +4,7 @@ using RabbitMQ.Client;
 
 namespace Epos.Eventing.RabbitMQ
 {
-    /// <summary> Extension methods for adding integration event publisher and registry. </summary>
+    /// <summary> Extension methods for adding integration event publisher and subscriber. </summary>
     public static class ServiceCollectionExtensions
     {
         /// <summary> Adds the integration event publisher. </summary>
@@ -19,15 +19,15 @@ namespace Epos.Eventing.RabbitMQ
             );
         }
 
-        /// <summary> Adds the integration event registry. </summary>
+        /// <summary> Adds the integration event subscriber. </summary>
         /// <param name="services">Service collection</param>
         /// <param name="connectionFactory">Connection factory</param>
         /// <returns>Service collection</returns>
-        public static IServiceCollection AddIntegrationEventRegistryRabbitMQ(
+        public static IServiceCollection AddIntegrationEventSubscriberRabbitMQ(
             this IServiceCollection services, IConnectionFactory connectionFactory
         ) {
-            return services.AddSingleton<IIntegrationEventRegistry>(
-                sp => new RabbitMQIntegrationEventRegistry(sp, connectionFactory)
+            return services.AddSingleton<IIntegrationEventSubscriber>(
+                sp => new RabbitMQIntegrationEventSubscriber(sp, connectionFactory)
             );
         }
     }

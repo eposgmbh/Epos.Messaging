@@ -10,16 +10,16 @@ using RabbitMQ.Client.Events;
 namespace Epos.Eventing.RabbitMQ
 {
     /// <inheritdoc />
-    public class RabbitMQIntegrationEventRegistry : IIntegrationEventRegistry
+    public class RabbitMQIntegrationEventSubscriber : IIntegrationEventSubscriber
     {
         private readonly IServiceProvider myServiceProvider;
         private readonly PersistentConnection myConnection;
         private IModel myChannel;
 
-        /// <summary> Creates an instance of the <b>RabbitMQIntegrationEventRegistry</b> class. </summary>
+        /// <summary> Creates an instance of the <b>RabbitMQIntegrationEventSubscriber</b> class. </summary>
         /// <param name="serviceProvider">Service provider to create <b>IntegrationEventHandler</b> instances</param>
         /// <param name="connectionFactory">Connection factory</param>
-        public RabbitMQIntegrationEventRegistry(
+        public RabbitMQIntegrationEventSubscriber(
             IServiceProvider serviceProvider, IConnectionFactory connectionFactory
         ) {
             this.myServiceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
@@ -31,7 +31,7 @@ namespace Epos.Eventing.RabbitMQ
         }
 
         /// <inheritdoc />
-        public Task Register<E, EH>() where E : IntegrationEvent where EH : IntegrationEventHandler<E> {
+        public Task Subscribe<E, EH>() where E : IntegrationEvent where EH : IntegrationEventHandler<E> {
             myConnection.EnsureIsConnected();
 
             if (myChannel == null) {

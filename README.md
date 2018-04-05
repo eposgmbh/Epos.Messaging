@@ -73,12 +73,13 @@ public class NoteAddedIntegrationEventHandler : IntegrationEventHandler<NoteAdde
 IServiceProvider theServiceProvider = ...;
 IConnectionFactory theConnectionFactory = new ConnectionFactory { HostName = "localhost" };
 
-IIntegrationEventRegistry theRegistry = new RabbitMQIntegrationEventRegistry(theServiceProvider, theConnectionFactory);
+IIntegrationEventSubscriber theSubriber =
+    new RabbitMQIntegrationEventSubscriber(theServiceProvider, theConnectionFactory);
 
-theRegistry.Register<NoteAddedIntegrationEvent, NoteAddedIntegrationEventHandler>();
+theSubscriber.Subscribe<NoteAddedIntegrationEvent, NoteAddedIntegrationEventHandler>();
 ```
 
-In a real world app you should create a singleton `RabbitMQIntegrationEventRegistry` in your application composition root (eg. `Startup` class). For that you can use the `ServiceCollectionExtensions` class.
+In a real world app you should create a singleton `RabbitMQIntegrationEventSubscriber` in your application composition root (eg. `Startup` class). For that you can use the `ServiceCollectionExtensions` class.
 
 ## License
 
