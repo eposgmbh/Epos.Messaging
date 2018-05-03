@@ -41,6 +41,8 @@ namespace Epos.Eventing.RabbitMQ
             var theRoutingKey = typeof(E).Name;
             string theQueueName = $"q-{theRoutingKey}";
 
+            myChannel.QueueDeclare(queue: theQueueName, durable: true, exclusive: false, autoDelete: false);
+
             var theConsumer = new EventingBasicConsumer(myChannel);
             theConsumer.Received += async (model, ea) => {
                 var theMessage = Encoding.UTF8.GetString(ea.Body);
