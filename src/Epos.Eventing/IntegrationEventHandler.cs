@@ -7,9 +7,8 @@ namespace Epos.Eventing
     {
         /// <summary>
         ///  Handles an integration event. </summary>
-        /// <param name="e">Integration event</param>
-        /// <param name="h">Messaging helper functionalities</param>
+        /// <param name="c">Integration event</param>
         /// <returns>Task</returns>
-        public abstract Task Handle(E e, MessagingHelper h);
+        public abstract Task Handle(E c);
     }
 }

@@ -1,8 +1,5 @@
 using System;
-using System.IO;
 using System.Net.Sockets;
-
-using Microsoft.Extensions.Logging;
 
 using Polly;
 using Polly.Retry;
@@ -15,7 +12,7 @@ namespace Epos.Eventing.RabbitMQ
 {
     internal class PersistentConnection
     {
-        private readonly object SyncRoot = new object();
+        private readonly object mySyncRoot = new object();
 
         private readonly IConnectionFactory myConnectionFactory;
         private readonly int myRetryCount;
@@ -54,8 +51,8 @@ namespace Epos.Eventing.RabbitMQ
                 return;
             }
 
-            lock (SyncRoot) {
-                var thePolicy = RetryPolicy
+            lock (mySyncRoot) {
+                RetryPolicy thePolicy = RetryPolicy
                     .Handle<SocketException>()
                     .Or<BrokerUnreachableException>()
                     .WaitAndRetry(
@@ -83,7 +80,7 @@ namespace Epos.Eventing.RabbitMQ
             EnsureIsConnected();
         }
 
-        void OnCallbackException(object sender, CallbackExceptionEventArgs e) {
+        private void OnCallbackException(object sender, CallbackExceptionEventArgs e) {
             if (myIsDisposed) {
                 return;
             }

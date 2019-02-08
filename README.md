@@ -21,7 +21,9 @@ $ dotnet add package Epos.Eventing.RabbitMQ
 
 ## Usage
 
-### Sending a persistent message
+### Sending an Integration Command
+
+An `Integration Command` is durable, persistent and **must** be handeled by exactly one handler.
 
 ```csharp
 public class Note
@@ -32,7 +34,7 @@ public class Note
     public DateTime Updated { get; set; }
 }
 
-public class NoteAddedIntegrationEvent : IntegrationEvent
+public class NoteAddedIntegrationCommand : IntegrationCommand
 {
     public Note AddedNote { get; set; }
 }
@@ -43,28 +45,35 @@ Note theNote = ...;
 
 IConnectionFactory theConnectionFactory =
     new ConnectionFactory { HostName = "localhost" };
-IIntegrationEventPublisher thePublisher =
-    new RabbitMQIntegrationEventPublisher(theConnectionFactory);
+IIntegrationCommandPublisher thePublisher =
+    new RabbitMQIntegrationCommandPublisher(theConnectionFactory);
 
-thePublisher.Publish(new NoteAddedIntegrationEvent { AddedNote = theNote });
+thePublisher.Publish(new NoteAddedIntegrationCommand { AddedNote = theNote });
 
 // ...
 
 thePublisher.Dispose();
 ```
 
-The event is published reliably to a persistent rabbitMQ queue (retry count of 5 and exponential backoff). In a real world app you should create a singleton `RabbitMQIntegrationEventPublisher` in your application composition root (eg. `Startup` class). For that you can use the `ServiceCollectionExtensions` class.
+The event is published reliably to a persistent rabbitMQ queue (retry count of 5 and exponential backoff). In a real
+world app you should create a singleton `RabbitMQIntegrationCommandPublisher` in your application composition root (eg.
+`Startup` class). For that you can use the `EposEventingServiceCollectionExtensions` class.
 
-### Recieving messages
+### Handling an Integration Command
+
+As long as no command handler is registered, the command is waiting and persisted in a RabbitMQ Queue.
+
+**IMPORTANT** Do not forget to acknowledge the command after successfully handling the command. Otherwise the command
+will be redelivered.
 
 ```csharp
-public class NoteAddedIntegrationEventHandler : IntegrationEventHandler<NoteAddedIntegrationEvent>
+public class NoteAddedIntegrationCommandHandler : IntegrationCommandHandler<NoteAddedIntegrationCommand>
 {
-    public override Task Handle(NoteAddedIntegrationEvent e, MessagingHelper h) {
-        var theMessage = $"Added note '{e.AddedNote.Text}' by {e.AddedNote.Author}.";
+    public override Task Handle(NoteAddedIntegrationCommand c, MessagingHelper h) {
+        var theMessage = $"Added note '{c.AddedNote.Text}' by {e.AddedNote.Author}.";
 
         Console.WriteLine(theMessage);
-        h.Ack(); // <- acknowledge message is handled succesfully
+        h.Ack(); // <- acknowledge command is handled succesfully
 
         return Task.CompletedTask;
     }
@@ -73,13 +82,25 @@ public class NoteAddedIntegrationEventHandler : IntegrationEventHandler<NoteAdde
 IServiceProvider theServiceProvider = ...;
 IConnectionFactory theConnectionFactory = new ConnectionFactory { HostName = "localhost" };
 
-IIntegrationEventSubscriber theSubriber =
-    new RabbitMQIntegrationEventSubscriber(theServiceProvider, theConnectionFactory);
+IIntegrationCommandSubscriber theSubriber =
+    new RabbitMQIntegrationCommandSubscriber(theServiceProvider, theConnectionFactory);
 
-theSubscriber.Subscribe<NoteAddedIntegrationEvent, NoteAddedIntegrationEventHandler>();
+theSubscriber.Subscribe<NoteAddedIntegrationCommand, NoteAddedIntegrationCommandHandler>();
 ```
 
-In a real world app you should create a singleton `RabbitMQIntegrationEventSubscriber` in your application composition root (eg. `Startup` class). For that you can use the `ServiceCollectionExtensions` class.
+In a real world app you should create a singleton `RabbitMQIntegrationCommandSubscriber` in your application composition
+root (eg. `Startup` class). For that you can use the `EposEventingServiceCollectionExtensions` class.
+
+### Integration Events
+
+`Integration Events` can be applied and handled just like Integration Commands (see above). The difference is that
+Integration Events need not be delivered and are therefore not persisted. Furthermore anyone subscribing to an
+Integration Event recieves the same Integration Event (i.e. fanout message, an Integration Command is only handled by
+exactly one handler.)
+
+### Examples
+
+See unit tests in `Epos.Eventing.RabbitMQ.Tests`.
 
 ## License
 

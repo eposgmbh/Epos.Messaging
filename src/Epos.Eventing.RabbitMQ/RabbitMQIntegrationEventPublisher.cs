@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -11,8 +11,6 @@ namespace Epos.Eventing.RabbitMQ
     /// <inheritdoc />
     public class RabbitMQIntegrationEventPublisher : IIntegrationEventPublisher
     {
-        private const string ExchangeName = nameof(RabbitMQIntegrationEventPublisher);
-
         private readonly PersistentConnection myConnection;
 
         /// <summary> Creates an instance of the <b>RabbitMQIntegrationEventPublisher</b> class. </summary>
@@ -33,24 +31,18 @@ namespace Epos.Eventing.RabbitMQ
 
             myConnection.EnsureIsConnected();
 
-            using (var theChannel = myConnection.CreateChannel()) {
-                var theRoutingKey = e.GetType().Name;
-                string theQueueName = $"q-{theRoutingKey}";
+            using (IModel theChannel = myConnection.CreateChannel()) {
+                string theExchangeName = $"e-{e.GetType().Name}";
 
-                theChannel.ExchangeDeclare(exchange: ExchangeName, type: "topic", durable: true);
-                theChannel.QueueDeclare(queue: theQueueName, durable: true, exclusive: false, autoDelete: false);
-                theChannel.QueueBind(queue: theQueueName, exchange: ExchangeName, routingKey: theRoutingKey);
+                theChannel.ExchangeDeclare(exchange: theExchangeName, type: "fanout", durable: true);
 
-                var theMessage = JsonConvert.SerializeObject(e);
-                var theBody = Encoding.UTF8.GetBytes(theMessage);
-
-                IBasicProperties theBasicProperties = theChannel.CreateBasicProperties();
-                theBasicProperties.Persistent = true;
+                string theMessage = JsonConvert.SerializeObject(e);
+                byte[] theBody = Encoding.UTF8.GetBytes(theMessage);
 
                 theChannel.BasicPublish(
-                    exchange: ExchangeName,
-                    routingKey: theRoutingKey,
-                    basicProperties: theBasicProperties,
+                    exchange: theExchangeName,
+                    routingKey: string.Empty,
+                    basicProperties: null,
                     body: theBody
                 );
             }
@@ -59,8 +51,6 @@ namespace Epos.Eventing.RabbitMQ
         }
 
         /// <inheritdoc />
-        public void Dispose() {
-            myConnection.Dispose();
-        }
+        public void Dispose() => myConnection.Dispose();
     }
 }

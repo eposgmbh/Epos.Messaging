@@ -1,22 +1,9 @@
-using System;
-
 namespace Epos.Eventing
 {
     /// <summary> Base class for integration events. </summary>
-    public abstract class IntegrationEvent
+    /// <remarks> Integration commands can be handled by more then one event handler and are not durable in their
+    /// respective queue. They are automatically acknowledged. </remarks>
+    public abstract class IntegrationEvent : IntegrationEventCommandBase
     {
-        /// <summary> Creates an instance of the <b>IntegrationEvent</b> class. </summary>
-        protected IntegrationEvent() {
-            Id = Guid.NewGuid();
-            CreationDate = DateTime.UtcNow;
-        }
-
-        /// <summary> Message Id. </summary>
-        /// <returns>Id</returns>
-        public Guid Id { get; }
-
-        /// <summary> Message creation date. </summary>
-        /// <returns>Creation date</returns>
-        public DateTime CreationDate { get; }
     }
 }

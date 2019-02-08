@@ -10,16 +10,16 @@ using RabbitMQ.Client.Events;
 namespace Epos.Eventing.RabbitMQ
 {
     /// <inheritdoc />
-    public class RabbitMQIntegrationEventSubscriber : IIntegrationEventSubscriber
+    public class RabbitMQIntegrationCommandSubscriber : IIntegrationCommandSubscriber
     {
         private readonly IServiceProvider myServiceProvider;
         private readonly PersistentConnection myConnection;
         private IModel myChannel;
 
-        /// <summary> Creates an instance of the <b>RabbitMQIntegrationEventSubscriber</b> class. </summary>
+        /// <summary> Creates an instance of the <b>RabbitMQIntegrationCommandSubscriber</b> class. </summary>
         /// <param name="serviceProvider">Service provider to create <b>IntegrationCommandHandler</b> instances</param>
         /// <param name="connectionFactory">Connection factory</param>
-        public RabbitMQIntegrationEventSubscriber(
+        public RabbitMQIntegrationCommandSubscriber(
             IServiceProvider serviceProvider, IConnectionFactory connectionFactory
         ) {
             myServiceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
@@ -31,35 +31,36 @@ namespace Epos.Eventing.RabbitMQ
         }
 
         /// <inheritdoc />
-        public Task Subscribe<E, EH>() where E : IntegrationEvent where EH : IntegrationEventHandler<E> {
+        public Task Subscribe<C, CH>() where C : IntegrationCommand where CH : IntegrationCommandHandler<C> {
             myConnection.EnsureIsConnected();
 
             if (myChannel == null) {
                 myChannel = myConnection.CreateChannel();
             }
 
-            string theQueueName = $"q-{typeof(E).Name}-{Guid.NewGuid().ToString("N").ToLowerInvariant()}";
-            string theExchangeName = $"e-{typeof(E).Name}";
-
-            myChannel.QueueDeclare(theQueueName);
-            myChannel.QueueBind(queue: theQueueName, exchange: theExchangeName, routingKey: string.Empty);
+            string theQueueName = $"q-{typeof(C).Name}";
 
             var theConsumer = new EventingBasicConsumer(myChannel);
             theConsumer.Received += async (model, ea) => {
                 string theMessage = Encoding.UTF8.GetString(ea.Body);
-                E theCommand = JsonConvert.DeserializeObject<E>(theMessage);
-                var theHandler = (EH) myServiceProvider.GetService(typeof(EH));
+                C theCommand = JsonConvert.DeserializeObject<C>(theMessage);
+                var theHandler = (CH) myServiceProvider.GetService(typeof(CH));
 
                 if (theHandler == null) {
                     throw new InvalidOperationException(
-                        $"Service provider does not contain an implementation for {typeof(EH).FullName}."
+                        $"Service provider does not contain an implementation for {typeof(CH).FullName}."
                     );
                 }
 
-                await theHandler.Handle(theCommand);
+                await theHandler.Handle(
+                    theCommand,
+                    new MessagingHelper(
+                        ack: () => myChannel.BasicAck(ea.DeliveryTag, multiple: false)
+                    )
+                );
             };
 
-            myChannel.BasicConsume(queue: theQueueName, autoAck: true, consumer: theConsumer);
+            myChannel.BasicConsume(queue: theQueueName, autoAck: false, consumer: theConsumer);
 
             return Task.CompletedTask;
         }
