@@ -31,7 +31,8 @@ namespace Epos.Eventing.RabbitMQ
         }
 
         /// <inheritdoc />
-        public Task Subscribe<C, CH>() where C : IntegrationCommand where CH : IntegrationCommandHandler<C> {
+        public Task Subscribe<C, CH>(string topic = null)
+            where C : IntegrationCommand where CH : IntegrationCommandHandler<C> {
             myConnection.EnsureIsConnected();
 
             if (myChannel == null) {
@@ -39,6 +40,11 @@ namespace Epos.Eventing.RabbitMQ
             }
 
             string theQueueName = $"q-{typeof(C).Name}";
+            if (!string.IsNullOrEmpty(topic)) {
+                theQueueName += $"-{topic}";
+            }
+
+            myChannel.QueueDeclare(queue: theQueueName, durable: true, exclusive: false, autoDelete: false);
 
             var theConsumer = new EventingBasicConsumer(myChannel);
             theConsumer.Received += async (model, ea) => {

@@ -8,6 +8,7 @@ namespace Epos.Eventing
     {
         /// <summary> Subscribes an integration command and registers its command handler. </summary>
         /// <returns>Task</returns>
-        Task Subscribe<C, CH>() where C : IntegrationCommand where CH : IntegrationCommandHandler<C>;
+        /// <param name="topic">Topic (optional) to further differentiate the integration command</param>
+        Task Subscribe<C, CH>(string topic = null) where C : IntegrationCommand where CH : IntegrationCommandHandler<C>;
     }
 }

@@ -36,6 +36,10 @@ namespace Epos.Eventing.RabbitMQ
             using (IModel theChannel = myConnection.CreateChannel()) {
                 string theRoutingKey = $"q-{c.GetType().Name}";
 
+                if (!string.IsNullOrEmpty(c.Topic)) {
+                    theRoutingKey += $"-{c.Topic}";
+                }
+
                 theChannel.QueueDeclare(queue: theRoutingKey, durable: true, exclusive: false, autoDelete: false);
 
                 string theMessage = JsonConvert.SerializeObject(c);

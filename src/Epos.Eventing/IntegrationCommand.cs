@@ -5,5 +5,7 @@ namespace Epos.Eventing
     /// respective queue. </remarks>
     public abstract class IntegrationCommand : IntegrationEventCommandBase
     {
+        /// <summary> Gets or sets a topic to further differentiate the integration command. </summary>
+        public string Topic { get; set; }
     }
 }
