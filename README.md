@@ -55,7 +55,7 @@ thePublisher.Publish(new NoteAddedIntegrationCommand { AddedNote = theNote });
 thePublisher.Dispose();
 ```
 
-The event is published reliably to a persistent rabbitMQ queue (retry count of 5 and exponential backoff). In a real
+The command is published reliably to a persistent rabbitMQ queue (retry count of 5 and exponential backoff). In a real
 world app you should create a singleton `RabbitMQIntegrationCommandPublisher` in your application composition root (eg.
 `Startup` class). For that you can use the `EposEventingServiceCollectionExtensions` class.
 
