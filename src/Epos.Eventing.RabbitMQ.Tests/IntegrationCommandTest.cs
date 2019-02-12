@@ -34,7 +34,7 @@ namespace Epos.Eventing.RabbitMQ
                 theServiceProvider, new ConnectionFactory { HostName = "localhost" }
             );
 
-            theSubscriber1.Subscribe<MyIntegrationCommand, MyIntegrationCommandHandler>();
+            theSubscriber1.Subscribe<MyIntegrationCommand, MyIntegrationCommandHandler>(CancellationToken.None);
 
             Thread.Sleep(1000);
 
@@ -53,7 +53,7 @@ namespace Epos.Eventing.RabbitMQ
                 theServiceProvider, new ConnectionFactory { HostName = "localhost" }
             );
 
-            theSubscriber2.Subscribe<MyIntegrationCommand, MyIntegrationCommandHandler>();
+            theSubscriber2.Subscribe<MyIntegrationCommand, MyIntegrationCommandHandler>(CancellationToken.None);
 
             // Es wurde nach wie vor nur ein Command gehandelt
             Assert.That(MyIntegrationCommandHandler.Payloads, Has.Exactly(1).EqualTo("1: C1"));

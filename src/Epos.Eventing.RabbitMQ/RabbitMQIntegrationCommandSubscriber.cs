@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Concurrent;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 using Newtonsoft.Json;
@@ -31,7 +33,7 @@ namespace Epos.Eventing.RabbitMQ
         }
 
         /// <inheritdoc />
-        public Task Subscribe<C, CH>(string topic = null)
+        public Task Subscribe<C, CH>(CancellationToken token, string topic = null)
             where C : IntegrationCommand where CH : IntegrationCommandHandler<C> {
             myConnection.EnsureIsConnected();
 
@@ -47,24 +49,38 @@ namespace Epos.Eventing.RabbitMQ
             myChannel.QueueDeclare(queue: theQueueName, durable: true, exclusive: false, autoDelete: false);
 
             var theConsumer = new EventingBasicConsumer(myChannel);
-            theConsumer.Received += async (model, ea) => {
-                string theMessage = Encoding.UTF8.GetString(ea.Body);
-                C theCommand = JsonConvert.DeserializeObject<C>(theMessage);
-                var theHandler = (CH) myServiceProvider.GetService(typeof(CH));
+            var theBlockingCollection = new BlockingCollection<BasicDeliverEventArgs>();
 
-                if (theHandler == null) {
-                    throw new InvalidOperationException(
-                        $"Service provider does not contain an implementation for {typeof(CH).FullName}."
-                    );
-                }
-
-                await theHandler.Handle(
-                    theCommand,
-                    new MessagingHelper(
-                        ack: () => myChannel.BasicAck(ea.DeliveryTag, multiple: false)
-                    )
-                );
+            theConsumer.Received += (model, ea) => {
+                theBlockingCollection.Add(ea);
             };
+
+            Task.Run(async () => {
+                do {
+                    try {
+                        BasicDeliverEventArgs ea = theBlockingCollection.Take(token);
+
+                        string theMessage = Encoding.UTF8.GetString(ea.Body);
+                        C theCommand = JsonConvert.DeserializeObject<C>(theMessage);
+                        var theHandler = (CH) myServiceProvider.GetService(typeof(CH));
+
+                        if (theHandler == null) {
+                            throw new InvalidOperationException(
+                                $"Service provider does not contain an implementation for {typeof(CH).FullName}."
+                            );
+                        }
+
+                        await theHandler.Handle(
+                            theCommand,
+                            new MessagingHelper(
+                                ack: () => myChannel.BasicAck(ea.DeliveryTag, multiple: false)
+                            )
+                        );
+                    } catch (OperationCanceledException) {
+                        return;
+                    }
+                } while (!token.IsCancellationRequested);
+            });
 
             myChannel.BasicConsume(queue: theQueueName, autoAck: false, consumer: theConsumer);
 
@@ -72,6 +88,9 @@ namespace Epos.Eventing.RabbitMQ
         }
 
         /// <inheritdoc />
-        public void Dispose() => myConnection.Dispose();
+        public void Dispose() {
+            myChannel.Dispose();
+            myConnection.Dispose();
+        }
     }
 }

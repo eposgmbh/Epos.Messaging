@@ -12,6 +12,7 @@ namespace Epos.Eventing.RabbitMQ
     public class RabbitMQIntegrationEventPublisher : IIntegrationEventPublisher
     {
         private readonly PersistentConnection myConnection;
+        private IModel myChannel;
 
         /// <summary> Creates an instance of the <b>RabbitMQIntegrationEventPublisher</b> class. </summary>
         /// <param name="connectionFactory">Connection factory</param>
@@ -31,26 +32,31 @@ namespace Epos.Eventing.RabbitMQ
 
             myConnection.EnsureIsConnected();
 
-            using (IModel theChannel = myConnection.CreateChannel()) {
-                string theExchangeName = $"e-{e.GetType().Name}";
-
-                theChannel.ExchangeDeclare(exchange: theExchangeName, type: "fanout", durable: true);
-
-                string theMessage = JsonConvert.SerializeObject(e);
-                byte[] theBody = Encoding.UTF8.GetBytes(theMessage);
-
-                theChannel.BasicPublish(
-                    exchange: theExchangeName,
-                    routingKey: string.Empty,
-                    basicProperties: null,
-                    body: theBody
-                );
+            if (myChannel == null) {
+                myChannel = myConnection.CreateChannel();
             }
+
+            string theExchangeName = $"e-{e.GetType().Name}";
+
+            myChannel.ExchangeDeclare(exchange: theExchangeName, type: "fanout", durable: true);
+
+            string theMessage = JsonConvert.SerializeObject(e);
+            byte[] theBody = Encoding.UTF8.GetBytes(theMessage);
+
+            myChannel.BasicPublish(
+                exchange: theExchangeName,
+                routingKey: string.Empty,
+                basicProperties: null,
+                body: theBody
+            );
 
             return Task.CompletedTask;
         }
 
         /// <inheritdoc />
-        public void Dispose() => myConnection.Dispose();
+        public void Dispose() {
+            myChannel.Dispose();
+            myConnection.Dispose();
+        }
     }
 }

@@ -65,6 +65,9 @@ namespace Epos.Eventing.RabbitMQ
         }
 
         /// <inheritdoc />
-        public void Dispose() => myConnection.Dispose();
+        public void Dispose() {
+            myChannel.Dispose();
+            myConnection.Dispose();
+        }
     }
 }
