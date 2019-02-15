@@ -4,6 +4,8 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
+using Microsoft.Extensions.DependencyInjection;
+
 using Newtonsoft.Json;
 
 using RabbitMQ.Client;
@@ -62,7 +64,7 @@ namespace Epos.Eventing.RabbitMQ
 
                         string theMessage = Encoding.UTF8.GetString(ea.Body);
                         C theCommand = JsonConvert.DeserializeObject<C>(theMessage);
-                        var theHandler = (CH) myServiceProvider.GetService(typeof(CH));
+                        var theHandler = (CH) myServiceProvider.CreateScope().ServiceProvider.GetService(typeof(CH));
 
                         if (theHandler == null) {
                             throw new InvalidOperationException(
