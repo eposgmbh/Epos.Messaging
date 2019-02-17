@@ -15,8 +15,8 @@ namespace Epos.Eventing.RabbitMQ
     public class RabbitMQIntegrationEventSubscriber : IIntegrationEventSubscriber
     {
         private readonly IServiceProvider myServiceProvider;
-        private readonly PersistentConnection myConnection;
-        private IModel myChannel;
+        private readonly IConnection myConnection;
+        private readonly IModel myChannel;
 
         /// <summary> Creates an instance of the <b>RabbitMQIntegrationEventSubscriber</b> class. </summary>
         /// <param name="serviceProvider">Service provider to create <b>IntegrationCommandHandler</b> instances</param>
@@ -29,17 +29,12 @@ namespace Epos.Eventing.RabbitMQ
             if (connectionFactory == null) {
                 throw new ArgumentNullException(nameof(connectionFactory));
             }
-            myConnection = new PersistentConnection(connectionFactory);
+            myConnection = connectionFactory.CreateConnection();
+            myChannel = myConnection.CreateModel();
         }
 
         /// <inheritdoc />
         public Task Subscribe<E, EH>() where E : IntegrationEvent where EH : IntegrationEventHandler<E> {
-            myConnection.EnsureIsConnected();
-
-            if (myChannel == null) {
-                myChannel = myConnection.CreateChannel();
-            }
-
             string theQueueName = $"q-{typeof(E).Name}-{Guid.NewGuid().ToString("N").ToLowerInvariant()}";
             string theExchangeName = $"e-{typeof(E).Name}";
 
@@ -54,7 +49,7 @@ namespace Epos.Eventing.RabbitMQ
 
                 if (theHandler == null) {
                     throw new InvalidOperationException(
-                        $"Service provider does not contain an implementation for {typeof(EH).FullName}."
+                        $"The service provider does not contain an implementation for {typeof(EH).FullName}."
                     );
                 }
 

@@ -1,16 +1,12 @@
 using Epos.TestUtilities.Docker;
 
-using NUnit.Framework;
-
 namespace Epos.Eventing.RabbitMQ
 {
-    [SetUpFixture]
-    public class SetupFixture
+    public static class RabbitMQContainer
     {
-        private DockerContainer myRabbitMQContainer;
+        private static DockerContainer myContainer;
 
-        [OneTimeSetUp]
-        public void StartRabbitMQContainer() {
+        public static void Start() {
             var theContainerOptions = new DockerContainerOptions {
                 ImageName = "rabbitmq:3.7.4-management-alpine",
                 Hostname = "rabbitmq-host",
@@ -21,10 +17,9 @@ namespace Epos.Eventing.RabbitMQ
                 ReadynessLogPhrase = "Server startup complete"
             };
 
-            myRabbitMQContainer = DockerContainer.StartAndWaitForReadynessLogPhrase(theContainerOptions);
+            myContainer = DockerContainer.StartAndWaitForReadynessLogPhrase(theContainerOptions);
         }
 
-        [OneTimeTearDown]
-        public void ForceRemoveRabbitMQContainer() => myRabbitMQContainer.ForceRemove();
+        public static void ForceRemove() => myContainer.ForceRemove();
     }
 }

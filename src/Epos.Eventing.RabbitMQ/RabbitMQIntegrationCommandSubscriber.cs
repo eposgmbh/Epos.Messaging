@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Concurrent;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -17,8 +16,8 @@ namespace Epos.Eventing.RabbitMQ
     public class RabbitMQIntegrationCommandSubscriber : IIntegrationCommandSubscriber
     {
         private readonly IServiceProvider myServiceProvider;
-        private readonly PersistentConnection myConnection;
-        private IModel myChannel;
+        private readonly IConnection myConnection;
+        private readonly IModel myChannel;
 
         /// <summary> Creates an instance of the <b>RabbitMQIntegrationCommandSubscriber</b> class. </summary>
         /// <param name="serviceProvider">Service provider to create <b>IntegrationCommandHandler</b> instances</param>
@@ -31,18 +30,13 @@ namespace Epos.Eventing.RabbitMQ
             if (connectionFactory == null) {
                 throw new ArgumentNullException(nameof(connectionFactory));
             }
-            myConnection = new PersistentConnection(connectionFactory);
+            myConnection = connectionFactory.CreateConnection();
+            myChannel = myConnection.CreateModel();
         }
 
         /// <inheritdoc />
         public Task Subscribe<C, CH>(CancellationToken token, string topic = null)
             where C : IntegrationCommand where CH : IntegrationCommandHandler<C> {
-            myConnection.EnsureIsConnected();
-
-            if (myChannel == null) {
-                myChannel = myConnection.CreateChannel();
-            }
-
             string theQueueName = $"q-{typeof(C).Name}";
             if (!string.IsNullOrEmpty(topic)) {
                 theQueueName += $"-{topic}";
@@ -51,38 +45,27 @@ namespace Epos.Eventing.RabbitMQ
             myChannel.QueueDeclare(queue: theQueueName, durable: true, exclusive: false, autoDelete: false);
 
             var theConsumer = new EventingBasicConsumer(myChannel);
-            var theBlockingCollection = new BlockingCollection<BasicDeliverEventArgs>();
 
-            theConsumer.Received += (model, ea) => {
-                theBlockingCollection.Add(ea);
+            token.Register(() => myChannel.BasicCancel(theConsumer.ConsumerTag));
+
+            theConsumer.Received += async (model, ea) => {
+                string theMessage = Encoding.UTF8.GetString(ea.Body);
+                C theCommand = JsonConvert.DeserializeObject<C>(theMessage);
+                var theHandler = (CH) myServiceProvider.CreateScope().ServiceProvider.GetService(typeof(CH));
+
+                if (theHandler == null) {
+                    throw new InvalidOperationException(
+                        $"The service provider does not contain an implementation for {typeof(CH).FullName}."
+                    );
+                }
+
+                await theHandler.Handle(
+                    theCommand,
+                    new MessagingHelper(
+                        ack: () => myChannel.BasicAck(ea.DeliveryTag, multiple: false)
+                    )
+                );
             };
-
-            Task.Run(async () => {
-                do {
-                    try {
-                        BasicDeliverEventArgs ea = theBlockingCollection.Take(token);
-
-                        string theMessage = Encoding.UTF8.GetString(ea.Body);
-                        C theCommand = JsonConvert.DeserializeObject<C>(theMessage);
-                        var theHandler = (CH) myServiceProvider.CreateScope().ServiceProvider.GetService(typeof(CH));
-
-                        if (theHandler == null) {
-                            throw new InvalidOperationException(
-                                $"Service provider does not contain an implementation for {typeof(CH).FullName}."
-                            );
-                        }
-
-                        await theHandler.Handle(
-                            theCommand,
-                            new MessagingHelper(
-                                ack: () => myChannel.BasicAck(ea.DeliveryTag, multiple: false)
-                            )
-                        );
-                    } catch (OperationCanceledException) {
-                        return;
-                    }
-                } while (!token.IsCancellationRequested);
-            });
 
             myChannel.BasicConsume(queue: theQueueName, autoAck: false, consumer: theConsumer);
 

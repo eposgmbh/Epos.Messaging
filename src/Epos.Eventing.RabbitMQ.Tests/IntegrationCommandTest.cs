@@ -13,10 +13,16 @@ namespace Epos.Eventing.RabbitMQ
     [TestFixture]
     public class IntegrationCommandTest
     {
+        [SetUp]
+        public void InitContainer() => RabbitMQContainer.Start();
+
+        [TearDown]
+        public void RemoveContainer() => RabbitMQContainer.ForceRemove();
+
         [Test]
         public void IntegrationCommands() {
             var thePublisher = new RabbitMQIntegrationCommandPublisher(
-                new ConnectionFactory { HostName = "localhost" }
+                new ConnectionFactory { AutomaticRecoveryEnabled = true, HostName = "localhost" }
             );
 
             // Ein Command senden
@@ -31,7 +37,7 @@ namespace Epos.Eventing.RabbitMQ
             ServiceProvider theServiceProvider = theServiceCollection.BuildServiceProvider();
 
             var theSubscriber1 = new RabbitMQIntegrationCommandSubscriber(
-                theServiceProvider, new ConnectionFactory { HostName = "localhost" }
+                theServiceProvider, new ConnectionFactory { AutomaticRecoveryEnabled = true, HostName = "localhost" }
             );
 
             theSubscriber1.Subscribe<MyIntegrationCommand, MyIntegrationCommandHandler>(CancellationToken.None);
@@ -50,7 +56,7 @@ namespace Epos.Eventing.RabbitMQ
             theServiceProvider = theServiceCollection.BuildServiceProvider();
 
             var theSubscriber2 = new RabbitMQIntegrationCommandSubscriber(
-                theServiceProvider, new ConnectionFactory { HostName = "localhost" }
+                theServiceProvider, new ConnectionFactory { AutomaticRecoveryEnabled = true, HostName = "localhost" }
             );
 
             theSubscriber2.Subscribe<MyIntegrationCommand, MyIntegrationCommandHandler>(CancellationToken.None);

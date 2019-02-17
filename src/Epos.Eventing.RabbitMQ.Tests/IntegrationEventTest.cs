@@ -13,6 +13,12 @@ namespace Epos.Eventing.RabbitMQ
     [TestFixture]
     public class IntegrationEventTest
     {
+        [SetUp]
+        public void InitContainer() => RabbitMQContainer.Start();
+
+        [TearDown]
+        public void RemoveContainer() => RabbitMQContainer.ForceRemove();
+
         [Test]
         public void IntegrationEvents() {
             var thePublisher = new RabbitMQIntegrationEventPublisher(

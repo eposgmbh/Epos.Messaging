@@ -13,8 +13,7 @@ namespace Epos.Eventing.RabbitMQ
     {
         private static readonly string DefaultExchangeName = string.Empty;
 
-        private readonly PersistentConnection myConnection;
-        private IModel myChannel;
+        private readonly IConnection myConnection;
 
         /// <summary> Creates an instance of the <b>RabbitMQIntegrationCommandPublisher</b> class. </summary>
         /// <param name="connectionFactory">Connection factory</param>
@@ -23,7 +22,7 @@ namespace Epos.Eventing.RabbitMQ
                 throw new ArgumentNullException(nameof(connectionFactory));
             }
 
-            myConnection = new PersistentConnection(connectionFactory);
+            myConnection = connectionFactory.CreateConnection();
         }
 
         /// <inheritdoc />
@@ -32,40 +31,33 @@ namespace Epos.Eventing.RabbitMQ
                 throw new ArgumentNullException(nameof(c));
             }
 
-            myConnection.EnsureIsConnected();
+            using (IModel theChannel = myConnection.CreateModel()) {
+                string theRoutingKey = $"q-{c.GetType().Name}";
 
-            if (myChannel == null) {
-                myChannel = myConnection.CreateChannel();
+                if (!string.IsNullOrEmpty(c.Topic)) {
+                    theRoutingKey += $"-{c.Topic}";
+                }
+
+                theChannel.QueueDeclare(queue: theRoutingKey, durable: true, exclusive: false, autoDelete: false);
+
+                string theMessage = JsonConvert.SerializeObject(c);
+                byte[] theBody = Encoding.UTF8.GetBytes(theMessage);
+
+                IBasicProperties theProperties = theChannel.CreateBasicProperties();
+                theProperties.Persistent = true;
+
+                theChannel.BasicPublish(
+                    exchange: DefaultExchangeName,
+                    routingKey: theRoutingKey,
+                    basicProperties: theProperties,
+                    body: theBody
+                );
             }
-
-            string theRoutingKey = $"q-{c.GetType().Name}";
-
-            if (!string.IsNullOrEmpty(c.Topic)) {
-                theRoutingKey += $"-{c.Topic}";
-            }
-
-            myChannel.QueueDeclare(queue: theRoutingKey, durable: true, exclusive: false, autoDelete: false);
-
-            string theMessage = JsonConvert.SerializeObject(c);
-            byte[] theBody = Encoding.UTF8.GetBytes(theMessage);
-
-            IBasicProperties theProperties = myChannel.CreateBasicProperties();
-            theProperties.Persistent = true;
-
-            myChannel.BasicPublish(
-                exchange: DefaultExchangeName,
-                routingKey: theRoutingKey,
-                basicProperties: theProperties,
-                body: theBody
-            );
 
             return Task.CompletedTask;
         }
 
         /// <inheritdoc />
-        public void Dispose() {
-            myChannel.Dispose();
-            myConnection.Dispose();
-        }
+        public void Dispose() => myConnection.Dispose();
     }
 }
