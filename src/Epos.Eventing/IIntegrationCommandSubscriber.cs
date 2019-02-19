@@ -9,9 +9,9 @@ namespace Epos.Eventing
     {
         /// <summary> Subscribes an integration command and registers its command handler. </summary>
         /// <returns>Task</returns>
+        /// <typeparam name="C">Integration command class</typeparam>
         /// <param name="token">Cancellation token</param>
         /// <param name="topic">Topic (optional) to further differentiate the integration command</param>
-        Task Subscribe<C, CH>(CancellationToken token, string topic = null)
-            where C : IntegrationCommand where CH : IntegrationCommandHandler<C>;
+        Task SubscribeAsync<C>(CancellationToken token, string topic = null) where C : IntegrationCommand;
     }
 }

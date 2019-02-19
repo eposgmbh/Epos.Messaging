@@ -1,7 +1,7 @@
-using Epos.Eventing;
-using Epos.Eventing.RabbitMQ;
+using System;
+using System.Linq;
 
-using RabbitMQ.Client;
+using Epos.Eventing;
 
 namespace Microsoft.Extensions.DependencyInjection
 {
@@ -10,42 +10,45 @@ namespace Microsoft.Extensions.DependencyInjection
     {
         /// <summary> Adds the integration command publisher. </summary>
         /// <param name="services">Service collection</param>
-        /// <param name="connectionFactory">Connection factory</param>
         /// <returns>Service collection</returns>
-        public static IServiceCollection AddIntegrationCommandPublisherRabbitMQ(
-            this IServiceCollection services, IConnectionFactory connectionFactory
-        ) => services.AddSingleton<IIntegrationCommandPublisher>(
-            sp => new RabbitMQIntegrationCommandPublisher(connectionFactory)
-        );
+        public static IServiceCollection AddIntegrationCommandPublisherRabbitMQ(this IServiceCollection services) {
+            if (services == null) {
+                throw new ArgumentNullException(nameof(services));
+            }
+
+            return services.AddSingleton<IIntegrationCommandPublisher>();
+        }
 
         /// <summary> Adds the integration command subscriber. </summary>
         /// <param name="services">Service collection</param>
-        /// <param name="connectionFactory">Connection factory</param>
         /// <returns>Service collection</returns>
-        public static IServiceCollection AddIntegrationCommandSubscriberRabbitMQ(
-            this IServiceCollection services, IConnectionFactory connectionFactory
-        ) => services.AddSingleton<IIntegrationCommandSubscriber>(
-            sp => new RabbitMQIntegrationCommandSubscriber(sp, connectionFactory)
-        );
+        public static IServiceCollection AddIntegrationCommandSubscriberRabbitMQ(this IServiceCollection services) {
+            if (services == null) {
+                throw new ArgumentNullException(nameof(services));
+            }
 
-        /// <summary> Adds the integration event publisher. </summary>
-        /// <param name="services">Service collection</param>
-        /// <param name="connectionFactory">Connection factory</param>
-        /// <returns>Service collection</returns>
-        public static IServiceCollection AddIntegrationEventPublisherRabbitMQ(
-            this IServiceCollection services, IConnectionFactory connectionFactory
-        ) => services.AddSingleton<IIntegrationEventPublisher>(
-            sp => new RabbitMQIntegrationEventPublisher(connectionFactory)
-        );
+            return services.AddSingleton<IIntegrationCommandSubscriber>();
+        }
 
-        /// <summary> Adds the integration event subscriber. </summary>
+        /// <summary> Adds an integration command handler. </summary>
         /// <param name="services">Service collection</param>
-        /// <param name="connectionFactory">Connection factory</param>
-        /// <returns>Service collection</returns>
-        public static IServiceCollection AddIntegrationEventSubscriberRabbitMQ(
-            this IServiceCollection services, IConnectionFactory connectionFactory
-        ) => services.AddSingleton<IIntegrationEventSubscriber>(
-            sp => new RabbitMQIntegrationEventSubscriber(sp, connectionFactory)
-        );
+        /// <param name="integrationCommandHandlerType">Integration command handler type</param>
+        /// <returns></returns>
+        public static IServiceCollection AddIntegrationCommandHandler(
+            this IServiceCollection services, Type integrationCommandHandlerType
+        ) {
+            if (services == null) {
+                throw new ArgumentNullException(nameof(services));
+            }
+            if (integrationCommandHandlerType == null) {
+                throw new ArgumentNullException(nameof(integrationCommandHandlerType));
+            }
+
+            Type theInterfaceType = integrationCommandHandlerType.GetInterfaces().Single(
+                i => i.GetGenericTypeDefinition() == typeof(IIntegrationCommandHandler<>)
+            );
+
+            return services.AddScoped(theInterfaceType, integrationCommandHandlerType);
+        }
     }
 }

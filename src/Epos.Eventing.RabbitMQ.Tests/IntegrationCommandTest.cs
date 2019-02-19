@@ -3,10 +3,9 @@ using System.Threading;
 using System.Threading.Tasks;
 
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 
 using NUnit.Framework;
-
-using RabbitMQ.Client;
 
 namespace Epos.Eventing.RabbitMQ
 {
@@ -20,27 +19,27 @@ namespace Epos.Eventing.RabbitMQ
         public void RemoveContainer() => RabbitMQContainer.ForceRemove();
 
         [Test]
-        public void IntegrationCommands() {
+        public async Task IntegrationCommands() {
+            var theOptions = new OptionsWrapper<EventingOptions>(EventingOptions.Default);
+
             var thePublisher = new RabbitMQIntegrationCommandPublisher(
-                new ConnectionFactory { AutomaticRecoveryEnabled = true, HostName = "localhost" }
+                theOptions
             );
 
             // Ein Command senden
-            thePublisher.Publish(new MyIntegrationCommand { Payload = "C1" });
+            await thePublisher.PublishAsync(new MyIntegrationCommand { Payload = "C1" });
 
             // ---
 
             // Erst jetzt Command handler registrieren
             var theServiceCollection = new ServiceCollection();
             theServiceCollection.AddSingleton(new ServiceProviderNumber(1));
-            theServiceCollection.AddTransient<MyIntegrationCommandHandler>();
+            theServiceCollection.AddIntegrationCommandHandler(typeof(MyIntegrationCommandHandler));
             ServiceProvider theServiceProvider = theServiceCollection.BuildServiceProvider();
 
-            var theSubscriber1 = new RabbitMQIntegrationCommandSubscriber(
-                theServiceProvider, new ConnectionFactory { AutomaticRecoveryEnabled = true, HostName = "localhost" }
-            );
+            var theSubscriber1 = new RabbitMQIntegrationCommandSubscriber(theOptions, theServiceProvider);
 
-            theSubscriber1.Subscribe<MyIntegrationCommand, MyIntegrationCommandHandler>(CancellationToken.None);
+            await theSubscriber1.SubscribeAsync<MyIntegrationCommand>();
 
             Thread.Sleep(1000);
 
@@ -52,14 +51,12 @@ namespace Epos.Eventing.RabbitMQ
             // Zweiten Command handler registrieren
             theServiceCollection = new ServiceCollection();
             theServiceCollection.AddSingleton(new ServiceProviderNumber(2));
-            theServiceCollection.AddTransient<MyIntegrationCommandHandler>();
+            theServiceCollection.AddIntegrationCommandHandler(typeof(MyIntegrationCommandHandler));
             theServiceProvider = theServiceCollection.BuildServiceProvider();
 
-            var theSubscriber2 = new RabbitMQIntegrationCommandSubscriber(
-                theServiceProvider, new ConnectionFactory { AutomaticRecoveryEnabled = true, HostName = "localhost" }
-            );
+            var theSubscriber2 = new RabbitMQIntegrationCommandSubscriber(theOptions, theServiceProvider);
 
-            theSubscriber2.Subscribe<MyIntegrationCommand, MyIntegrationCommandHandler>(CancellationToken.None);
+            await theSubscriber2.SubscribeAsync<MyIntegrationCommand>();
 
             // Es wurde nach wie vor nur ein Command gehandelt
             Assert.That(MyIntegrationCommandHandler.Payloads, Has.Exactly(1).EqualTo("1: C1"));
@@ -67,13 +64,13 @@ namespace Epos.Eventing.RabbitMQ
             // ---
 
             // Vier Commands im Abstand von einer Sekunde losschicken
-            thePublisher.Publish(new MyIntegrationCommand { Payload = "C2" });
+            await thePublisher.PublishAsync(new MyIntegrationCommand { Payload = "C2" });
             Thread.Sleep(1000);
-            thePublisher.Publish(new MyIntegrationCommand { Payload = "C3" });
+            await thePublisher.PublishAsync(new MyIntegrationCommand { Payload = "C3" });
             Thread.Sleep(1000);
-            thePublisher.Publish(new MyIntegrationCommand { Payload = "C4" });
+            await thePublisher.PublishAsync(new MyIntegrationCommand { Payload = "C4" });
             Thread.Sleep(1000);
-            thePublisher.Publish(new MyIntegrationCommand { Payload = "C5" });
+            await thePublisher.PublishAsync(new MyIntegrationCommand { Payload = "C5" });
             Thread.Sleep(1000);
 
             // ---
@@ -98,7 +95,7 @@ namespace Epos.Eventing.RabbitMQ
             public string Payload { get; set; }
         }
 
-        private class MyIntegrationCommandHandler : IntegrationCommandHandler<MyIntegrationCommand>
+        private class MyIntegrationCommandHandler : IIntegrationCommandHandler<MyIntegrationCommand>
         {
             public static readonly ConcurrentBag<string> Payloads = new ConcurrentBag<string>();
 
@@ -108,7 +105,7 @@ namespace Epos.Eventing.RabbitMQ
                 myNumber = number;
             }
 
-            public override Task Handle(MyIntegrationCommand c, MessagingHelper h) {
+            public Task Handle(MyIntegrationCommand c, CancellationToken token, CommandHelper h) {
                 Payloads.Add($"{myNumber.Number}: {c.Payload}");
                 h.Ack();
 

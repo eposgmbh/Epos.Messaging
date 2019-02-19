@@ -1,20 +1,21 @@
 using System;
+using System.Threading.Tasks;
 
 namespace Epos.Eventing
 {
     /// <summary> Messaging helper functionalities. </summary>
-    public class MessagingHelper
+    public class CommandHelper : ICommandHelper
     {
-        private readonly Action myAck;
+        private readonly Func<Task> myAck;
 
-        /// <summary> Creates an instance of the <b>MessagingHelper</b> class.
+        /// <summary> Creates an instance of the <b>CommandHelper</b> class.
         /// </summary>
         /// <param name="ack">Ack delegate</param>
-        public MessagingHelper(Action ack) {
+        public CommandHelper(Func<Task> ack) {
             myAck = ack ?? throw new ArgumentNullException(nameof(ack));
         }
 
         /// <summary> Acknowledges the message. </summary>
-        public void Ack() => myAck();
+        public Task Ack() => myAck();
     }
 }

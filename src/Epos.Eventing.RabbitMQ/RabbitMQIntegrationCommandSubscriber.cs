@@ -2,9 +2,9 @@ using System;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-
+using Epos.Utilities;
 using Microsoft.Extensions.DependencyInjection;
-
+using Microsoft.Extensions.Options;
 using Newtonsoft.Json;
 
 using RabbitMQ.Client;
@@ -17,65 +17,88 @@ namespace Epos.Eventing.RabbitMQ
     {
         private readonly IServiceProvider myServiceProvider;
         private readonly IConnection myConnection;
-        private readonly IModel myChannel;
 
         /// <summary> Creates an instance of the <b>RabbitMQIntegrationCommandSubscriber</b> class. </summary>
+        /// <param name="options">Eventing options</param>
         /// <param name="serviceProvider">Service provider to create <b>IntegrationCommandHandler</b> instances</param>
-        /// <param name="connectionFactory">Connection factory</param>
         public RabbitMQIntegrationCommandSubscriber(
-            IServiceProvider serviceProvider, IConnectionFactory connectionFactory
+            IOptions<EventingOptions> options,
+            IServiceProvider serviceProvider
         ) {
-            myServiceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
-
-            if (connectionFactory == null) {
-                throw new ArgumentNullException(nameof(connectionFactory));
+            if (options == null) {
+                throw new ArgumentNullException(nameof(options));
             }
-            myConnection = connectionFactory.CreateConnection();
-            myChannel = myConnection.CreateModel();
+
+            myServiceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
+            myConnection = PersistentConnection.Create(options.Value);
         }
 
         /// <inheritdoc />
-        public Task Subscribe<C, CH>(CancellationToken token, string topic = null)
-            where C : IntegrationCommand where CH : IntegrationCommandHandler<C> {
+        public Task SubscribeAsync<C>(CancellationToken token, string topic = null) where C : IntegrationCommand {
             string theQueueName = $"q-{typeof(C).Name}";
             if (!string.IsNullOrEmpty(topic)) {
                 theQueueName += $"-{topic}";
             }
 
-            myChannel.QueueDeclare(queue: theQueueName, durable: true, exclusive: false, autoDelete: false);
+            IModel theChannel = myConnection.CreateModel();
+            theChannel.QueueDeclare(queue: theQueueName, durable: true, exclusive: false, autoDelete: false);
 
-            var theConsumer = new EventingBasicConsumer(myChannel);
+            var theConsumer = new EventingBasicConsumer(theChannel);
+            int theHandlerInProgressCount = 0;
 
-            token.Register(() => myChannel.BasicCancel(theConsumer.ConsumerTag));
+            token.Register(() => {
+                theChannel.BasicCancel(theConsumer.ConsumerTag);
 
-            theConsumer.Received += async (model, ea) => {
-                string theMessage = Encoding.UTF8.GetString(ea.Body);
-                C theCommand = JsonConvert.DeserializeObject<C>(theMessage);
-                var theHandler = (CH) myServiceProvider.CreateScope().ServiceProvider.GetService(typeof(CH));
-
-                if (theHandler == null) {
-                    throw new InvalidOperationException(
-                        $"The service provider does not contain an implementation for {typeof(CH).FullName}."
-                    );
+                // Wait for handlers to finish
+                while (theHandlerInProgressCount != 0) {
+                    Console.WriteLine("Handlers still in progress: " + theHandlerInProgressCount);
+                    Thread.Sleep(100);
                 }
 
-                await theHandler.Handle(
-                    theCommand,
-                    new MessagingHelper(
-                        ack: () => myChannel.BasicAck(ea.DeliveryTag, multiple: false)
-                    )
-                );
+                theChannel.QueueDelete(theQueueName, ifUnused: true, ifEmpty: true);
+                theChannel.Close();
+            });
+
+            theConsumer.Received += async (model, ea) => {
+                Interlocked.Increment(ref theHandlerInProgressCount);
+
+                string theMessage = Encoding.UTF8.GetString(ea.Body);
+                C theCommand = JsonConvert.DeserializeObject<C>(theMessage);
+
+                using (IServiceScope theScope = myServiceProvider.CreateScope()) {
+                    IIntegrationCommandHandler<C> theHandler =
+                        theScope.ServiceProvider.GetService<IIntegrationCommandHandler<C>>();
+
+                    try {
+                        if (theHandler == null) {
+                            throw new InvalidOperationException(
+                                "The service provider does not contain an implementation for " +
+                                typeof(IIntegrationCommandHandler<C>).Dump() + "."
+                            );
+                        }
+
+                        await theHandler.Handle(
+                            theCommand,
+                            token,
+                            new CommandHelper(
+                                ack: () => {
+                                    theChannel.BasicAck(ea.DeliveryTag, multiple: false);
+                                    return Task.CompletedTask;
+                                }
+                            )
+                        );
+                    } finally {
+                        Interlocked.Decrement(ref theHandlerInProgressCount);
+                    }
+                }
             };
 
-            myChannel.BasicConsume(queue: theQueueName, autoAck: false, consumer: theConsumer);
+            theChannel.BasicConsume(queue: theQueueName, autoAck: false, consumer: theConsumer);
 
             return Task.CompletedTask;
         }
 
         /// <inheritdoc />
-        public void Dispose() {
-            myChannel.Dispose();
-            myConnection.Dispose();
-        }
+        public void Dispose() => myConnection.Close();
     }
 }

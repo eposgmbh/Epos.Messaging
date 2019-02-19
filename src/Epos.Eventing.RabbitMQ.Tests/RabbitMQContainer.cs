@@ -20,6 +20,6 @@ namespace Epos.Eventing.RabbitMQ
             myContainer = DockerContainer.StartAndWaitForReadynessLogPhrase(theContainerOptions);
         }
 
-        public static void ForceRemove() => myContainer.ForceRemove();
+        public static void ForceRemove() => myContainer?.ForceRemove();
     }
 }

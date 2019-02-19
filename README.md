@@ -8,7 +8,7 @@
 Simple library for reliable messaging with RabbitMQ (for publishing messages between Microservices).
 
 Build and Release deployment ([NuGet](https://www.nuget.org/)) is automated with
-[Visual Studio Team Services](https://www.visualstudio.com/team-services). Try it, it's free and powerful.
+[Azure Devops](https://azure.microsoft.com/en-us/services/devops/). Try it, it's free and very powerful.
 
 ## Installation
 
@@ -26,6 +26,8 @@ $ dotnet add package Epos.Eventing.RabbitMQ
 An `Integration Command` is durable, persistent and **must** be handeled by exactly one handler.
 
 ```csharp
+// Model and corresponding integration command
+
 public class Note
 {
     public string Id { get; set; }
@@ -39,25 +41,39 @@ public class NoteAddedIntegrationCommand : IntegrationCommand
     public Note AddedNote { get; set; }
 }
 
-// ...
+// Startup.cs
 
-Note theNote = ...;
+services.AddIntegrationCommandPublisherRabbitMQ();
+services.Configure<EventingOptions>(options => {
+    options.Hostname = "localhost";
+    opions.Username = "guest";
+    options.Password = "guest";
+});
 
-IConnectionFactory theConnectionFactory =
-    new ConnectionFactory { HostName = "localhost" };
-IIntegrationCommandPublisher thePublisher =
-    new RabbitMQIntegrationCommandPublisher(theConnectionFactory);
+// NoteController.cs
 
-thePublisher.Publish(new NoteAddedIntegrationCommand { AddedNote = theNote });
+public class NoteController
+{
+    // ...
 
-// ...
+    public NoteController(IIntegrationCommandPublisher publisher) {
+        this.publisher = publisher;
+    }
 
-thePublisher.Dispose();
+    // ...
+
+    [HttpPost]
+    public async Task<ActionResult> Post(Note note) {
+        // ...
+
+        await this.publisher.PublishAsync(new NoteAddedIntegrationCommand { AddedNote = note });
+
+        // ...
+    }
+}
 ```
 
-The command is published reliably to a persistent rabbitMQ queue (retry count of 5 and exponential backoff). In a real
-world app you should create a singleton `RabbitMQIntegrationCommandPublisher` in your application composition root (eg.
-`Startup` class). For that you can use the `EposEventingServiceCollectionExtensions` class.
+The command is published reliably to a persistent RabbitMQ queue.
 
 ### Handling an Integration Command
 
@@ -67,9 +83,11 @@ As long as no command handler is registered, the command is waiting and persiste
 will be redelivered.
 
 ```csharp
-public class NoteAddedIntegrationCommandHandler : IntegrationCommandHandler<NoteAddedIntegrationCommand>
+// Command handler class
+
+public class NoteAddedIntegrationCommandHandler : IIntegrationCommandHandler<NoteAddedIntegrationCommand>
 {
-    public override Task Handle(NoteAddedIntegrationCommand c, MessagingHelper h) {
+    public Task Handle(NoteAddedIntegrationCommand c, CancellationToken token, MessagingHelper h) {
         var theMessage = $"Added note '{c.AddedNote.Text}' by {e.AddedNote.Author}.";
 
         Console.WriteLine(theMessage);
@@ -79,24 +97,20 @@ public class NoteAddedIntegrationCommandHandler : IntegrationCommandHandler<Note
     }
 }
 
-IServiceProvider theServiceProvider = ...;
-IConnectionFactory theConnectionFactory = new ConnectionFactory { HostName = "localhost" };
+// Startup.cs
 
-IIntegrationCommandSubscriber theSubriber =
-    new RabbitMQIntegrationCommandSubscriber(theServiceProvider, theConnectionFactory);
+services.AddIntegrationCommandSubscriberRabbitMQ();
+services.Configure<EventingOptions>(options => {
+    options.Hostname = "localhost";
+    opions.Username = "guest";
+    options.Password = "guest";
+});
+services.AddIntegrationCommandHandler(typeof(NoteAddedIntegrationCommandHandler));
 
-theSubscriber.Subscribe<NoteAddedIntegrationCommand, NoteAddedIntegrationCommandHandler>();
+// App code (e.g. in Program.cs before IHost.Run)
+
+await theSubscriber.SubscribeAsync<NoteAddedIntegrationCommand>();
 ```
-
-In a real world app you should create a singleton `RabbitMQIntegrationCommandSubscriber` in your application composition
-root (eg. `Startup` class). For that you can use the `EposEventingServiceCollectionExtensions` class.
-
-### Integration Events
-
-`Integration Events` can be applied and handled just like Integration Commands (see above). The difference is that
-Integration Events need not be delivered and are therefore not persisted. Furthermore anyone subscribing to an
-Integration Event recieves the same Integration Event (i.e. fanout message, an Integration Command is only handled by
-exactly one handler.)
 
 ### Examples
 
