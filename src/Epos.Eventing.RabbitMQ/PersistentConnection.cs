@@ -21,7 +21,7 @@ namespace Epos.Eventing.RabbitMQ
                 Password = options.Password
             };
 
-            RetryPolicy thePolicy = Polly.Policy
+            RetryPolicy thePolicy = Policy
                 .Handle<SocketException>()
                 .Or<BrokerUnreachableException>()
                 .WaitAndRetry(

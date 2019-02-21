@@ -1,5 +1,4 @@
 using System;
-using System.Threading;
 using System.Threading.Tasks;
 
 namespace Epos.Eventing
@@ -8,10 +7,9 @@ namespace Epos.Eventing
     public interface IIntegrationCommandSubscriber : IDisposable
     {
         /// <summary> Subscribes an integration command and registers its command handler. </summary>
-        /// <returns>Task</returns>
+        /// <returns>Subscription</returns>
         /// <typeparam name="C">Integration command class</typeparam>
-        /// <param name="token">Cancellation token</param>
         /// <param name="topic">Topic (optional) to further differentiate the integration command</param>
-        Task SubscribeAsync<C>(CancellationToken token, string topic = null) where C : IntegrationCommand;
+        Task<ISubscription> SubscribeAsync<C>(string topic = null) where C : IntegrationCommand;
     }
 }

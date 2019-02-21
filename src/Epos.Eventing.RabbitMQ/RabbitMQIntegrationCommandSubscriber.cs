@@ -2,9 +2,12 @@ using System;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+
 using Epos.Utilities;
+
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
+
 using Newtonsoft.Json;
 
 using RabbitMQ.Client;
@@ -15,6 +18,8 @@ namespace Epos.Eventing.RabbitMQ
     /// <inheritdoc />
     public class RabbitMQIntegrationCommandSubscriber : IIntegrationCommandSubscriber
     {
+        private const int WaitTimeout = 250;
+
         private readonly IServiceProvider myServiceProvider;
         private readonly IConnection myConnection;
 
@@ -34,7 +39,7 @@ namespace Epos.Eventing.RabbitMQ
         }
 
         /// <inheritdoc />
-        public Task SubscribeAsync<C>(CancellationToken token, string topic = null) where C : IntegrationCommand {
+        public Task<ISubscription> SubscribeAsync<C>(string topic = null) where C : IntegrationCommand {
             string theQueueName = $"q-{typeof(C).Name}";
             if (!string.IsNullOrEmpty(topic)) {
                 theQueueName += $"-{topic}";
@@ -46,20 +51,27 @@ namespace Epos.Eventing.RabbitMQ
             var theConsumer = new EventingBasicConsumer(theChannel);
             int theHandlerInProgressCount = 0;
 
-            token.Register(() => {
+            var theCancellationTokenSource = new CancellationTokenSource();
+
+            var theSubscription = new Subscription();
+            theSubscription.Cancelling += delegate {
+                theCancellationTokenSource.Cancel();
+
                 theChannel.BasicCancel(theConsumer.ConsumerTag);
 
                 // Wait for handlers to finish
                 while (theHandlerInProgressCount != 0) {
-                    Console.WriteLine("Handlers still in progress: " + theHandlerInProgressCount);
-                    Thread.Sleep(100);
+                    Thread.Sleep(WaitTimeout);
                 }
 
-                theChannel.QueueDelete(theQueueName, ifUnused: true, ifEmpty: true);
                 theChannel.Close();
-            });
+            };
 
             theConsumer.Received += async (model, ea) => {
+                if (theCancellationTokenSource.Token.IsCancellationRequested) {
+                    return;
+                }
+
                 Interlocked.Increment(ref theHandlerInProgressCount);
 
                 string theMessage = Encoding.UTF8.GetString(ea.Body);
@@ -79,7 +91,7 @@ namespace Epos.Eventing.RabbitMQ
 
                         await theHandler.Handle(
                             theCommand,
-                            token,
+                            theCancellationTokenSource.Token,
                             new CommandHelper(
                                 ack: () => {
                                     theChannel.BasicAck(ea.DeliveryTag, multiple: false);
@@ -95,7 +107,7 @@ namespace Epos.Eventing.RabbitMQ
 
             theChannel.BasicConsume(queue: theQueueName, autoAck: false, consumer: theConsumer);
 
-            return Task.CompletedTask;
+            return Task.FromResult((ISubscription) theSubscription);
         }
 
         /// <inheritdoc />

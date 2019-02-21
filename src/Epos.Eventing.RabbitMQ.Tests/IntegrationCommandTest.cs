@@ -39,7 +39,7 @@ namespace Epos.Eventing.RabbitMQ
 
             var theSubscriber1 = new RabbitMQIntegrationCommandSubscriber(theOptions, theServiceProvider);
 
-            await theSubscriber1.SubscribeAsync<MyIntegrationCommand>();
+            ISubscription theSubscription1 = await theSubscriber1.SubscribeAsync<MyIntegrationCommand>();
 
             Thread.Sleep(1000);
 
@@ -56,7 +56,7 @@ namespace Epos.Eventing.RabbitMQ
 
             var theSubscriber2 = new RabbitMQIntegrationCommandSubscriber(theOptions, theServiceProvider);
 
-            await theSubscriber2.SubscribeAsync<MyIntegrationCommand>();
+            ISubscription theSubscription2 = await theSubscriber2.SubscribeAsync<MyIntegrationCommand>();
 
             // Es wurde nach wie vor nur ein Command gehandelt
             Assert.That(MyIntegrationCommandHandler.Payloads, Has.Exactly(1).EqualTo("1: C1"));
@@ -84,6 +84,9 @@ namespace Epos.Eventing.RabbitMQ
             Assert.That(MyIntegrationCommandHandler.Payloads, Contains.Item("2: C5"));
 
             // ---
+
+            theSubscription1.Cancel();
+            theSubscription2.Cancel();
 
             thePublisher.Dispose();
             theSubscriber1.Dispose();
