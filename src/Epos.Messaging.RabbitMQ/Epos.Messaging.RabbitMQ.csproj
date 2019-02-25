@@ -1,18 +1,19 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
     <LangVersion>8.0</LangVersion>
-    <AssemblyName>Epos.Eventing.RabbitMQ</AssemblyName>
-    <RootNamespace>Epos.Eventing.RabbitMQ</RootNamespace>
+    <NullableContextOptions>enable</NullableContextOptions>
+    <AssemblyName>Epos.Messaging.RabbitMQ</AssemblyName>
+    <RootNamespace>Epos.Messaging.RabbitMQ</RootNamespace>
     <AssemblyVersion>9.9.9</AssemblyVersion>
     <AssemblyInformationalVersion>9.9.9</AssemblyInformationalVersion>
     <PackageVersion>9.9.9</PackageVersion>
-    <Description>.NET Standard eventing library for reliable messaging with RabbitMQ (Microservices eventing)</Description>
+    <Description>.NET Standard Messaging library for reliable messaging with RabbitMQ (Microservices messaging)</Description>
     <Authors>Jan Bohlen</Authors>
     <Company>Epos</Company>
-    <PackageLicenseUrl>https://github.com/eposgmbh/Epos.Eventing/blob/master/LICENSE</PackageLicenseUrl>
-    <PackageProjectUrl>https://github.com/eposgmbh/Epos.Eventing</PackageProjectUrl>
+    <PackageLicenseUrl>https://github.com/eposgmbh/Epos.Messaging/blob/master/LICENSE</PackageLicenseUrl>
+    <PackageProjectUrl>https://github.com/eposgmbh/Epos.Messaging</PackageProjectUrl>
     <DocumentationFile>bin\$(Configuration)\$(TargetFramework)\$(AssemblyName).xml</DocumentationFile>
   </PropertyGroup>
 
@@ -26,7 +27,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Epos.Eventing\Epos.Eventing.csproj" />
+    <ProjectReference Include="..\Epos.Messaging\Epos.Messaging.csproj" />
   </ItemGroup>
 
 </Project>

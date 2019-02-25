@@ -10,19 +10,17 @@ using Newtonsoft.Json;
 
 using RabbitMQ.Client;
 
-namespace Epos.Eventing.RabbitMQ
+namespace Epos.Messaging.RabbitMQ
 {
     /// <inheritdoc />
     public class RabbitMQIntegrationCommandPublisher : IIntegrationCommandPublisher
     {
-        private static readonly string DefaultExchangeName = string.Empty;
-
         private readonly IConnection myConnection;
         private readonly ConcurrentDictionary<int, IModel> myChannels;
 
         /// <summary> Creates an instance of the <b>RabbitMQIntegrationCommandPublisher</b> class. </summary>
         /// <param name="options">Eventing options</param>
-        public RabbitMQIntegrationCommandPublisher(IOptions<EventingOptions> options) {
+        public RabbitMQIntegrationCommandPublisher(IOptions<RabbitMQOptions> options) {
             if (options == null) {
                 throw new ArgumentNullException(nameof(options));
             }
@@ -53,7 +51,7 @@ namespace Epos.Eventing.RabbitMQ
             theProperties.Persistent = true;
 
             theChannel.BasicPublish(
-                exchange: DefaultExchangeName,
+                exchange: Constants.DefaultExchangeName,
                 routingKey: theRoutingKey,
                 basicProperties: theProperties,
                 body: theBody

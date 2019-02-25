@@ -7,13 +7,13 @@ using Polly.Retry;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Exceptions;
 
-namespace Epos.Eventing.RabbitMQ
+namespace Epos.Messaging.RabbitMQ
 {
     internal static class PersistentConnection
     {
         private const int ConnectionFactoryRetryCount = 5;
 
-        public static IConnection Create(EventingOptions options) {
+        public static IConnection Create(RabbitMQOptions options) {
             var theConnectionFactory = new ConnectionFactory {
                 AutomaticRecoveryEnabled = true,
                 HostName = options.Hostname,
@@ -29,7 +29,7 @@ namespace Epos.Eventing.RabbitMQ
                     sleepDurationProvider: retryAttempt => TimeSpan.FromSeconds(Math.Pow(2, retryAttempt))
                 );
 
-            IConnection theConnection = null;
+            IConnection? theConnection = null;
             thePolicy.Execute(() => theConnection = theConnectionFactory.CreateConnection());
 
             if (theConnection == null || !theConnection.IsOpen) {

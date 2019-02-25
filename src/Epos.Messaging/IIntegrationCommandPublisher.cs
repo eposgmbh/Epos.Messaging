@@ -1,7 +1,7 @@
 using System;
 using System.Threading.Tasks;
 
-namespace Epos.Eventing
+namespace Epos.Messaging
 {
     /// <summary> Publishes integration commands. </summary>
     public interface IIntegrationCommandPublisher : IDisposable

@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <TargetFramework>netcoreapp2.0</TargetFramework>
-    <RootNamespace>Epos.Eventing.RabbitMQ</RootNamespace>
+    <RootNamespace>Epos.Messaging.RabbitMQ</RootNamespace>
   </PropertyGroup>
 
   <ItemGroup>
@@ -15,8 +15,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Epos.Eventing.RabbitMQ\Epos.Eventing.RabbitMQ.csproj" />
-    <ProjectReference Include="..\Epos.Eventing\Epos.Eventing.csproj" />
+    <ProjectReference Include="..\Epos.Messaging.RabbitMQ\Epos.Messaging.RabbitMQ.csproj" />
+    <ProjectReference Include="..\Epos.Messaging\Epos.Messaging.csproj" />
   </ItemGroup>
 
 </Project>

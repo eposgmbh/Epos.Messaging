@@ -1,9 +1,9 @@
 using System;
 
-namespace Epos.Eventing
+namespace Epos.Messaging
 {
-    /// <summary> Base class for integration events and commands. </summary>
-    public abstract class IntegrationEventCommandBase
+    /// <summary> Base class for messages. </summary>
+    public abstract class MessageBase
     {
         /// <summary> Message Id. </summary>
         /// <returns>Id</returns>

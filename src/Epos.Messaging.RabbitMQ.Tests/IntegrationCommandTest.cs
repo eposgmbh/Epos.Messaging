@@ -7,7 +7,7 @@ using Microsoft.Extensions.Options;
 
 using NUnit.Framework;
 
-namespace Epos.Eventing.RabbitMQ
+namespace Epos.Messaging.RabbitMQ
 {
     [TestFixture]
     public class IntegrationCommandTest
@@ -20,11 +20,9 @@ namespace Epos.Eventing.RabbitMQ
 
         [Test]
         public async Task IntegrationCommands() {
-            var theOptions = new OptionsWrapper<EventingOptions>(EventingOptions.Default);
+            var theOptions = new OptionsWrapper<RabbitMQOptions>(RabbitMQOptions.Default);
 
-            var thePublisher = new RabbitMQIntegrationCommandPublisher(
-                theOptions
-            );
+            var thePublisher = new RabbitMQIntegrationCommandPublisher(theOptions);
 
             // Ein Command senden
             await thePublisher.PublishAsync(new MyIntegrationCommand { Payload = "C1" });
@@ -108,7 +106,7 @@ namespace Epos.Eventing.RabbitMQ
                 myNumber = number;
             }
 
-            public Task Handle(MyIntegrationCommand c, CancellationToken token, CommandHelper h) {
+            public Task Handle(MyIntegrationCommand c, CancellationToken token, IIntegrationCommandHelper h) {
                 Payloads.Add($"{myNumber.Number}: {c.Payload}");
                 h.Ack();
 

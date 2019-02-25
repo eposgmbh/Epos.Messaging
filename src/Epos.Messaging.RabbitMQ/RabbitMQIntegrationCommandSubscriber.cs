@@ -13,13 +13,11 @@ using Newtonsoft.Json;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 
-namespace Epos.Eventing.RabbitMQ
+namespace Epos.Messaging.RabbitMQ
 {
     /// <inheritdoc />
     public class RabbitMQIntegrationCommandSubscriber : IIntegrationCommandSubscriber
     {
-        private const int WaitTimeout = 250;
-
         private readonly IServiceProvider myServiceProvider;
         private readonly IConnection myConnection;
 
@@ -27,7 +25,7 @@ namespace Epos.Eventing.RabbitMQ
         /// <param name="options">Eventing options</param>
         /// <param name="serviceProvider">Service provider to create <b>IntegrationCommandHandler</b> instances</param>
         public RabbitMQIntegrationCommandSubscriber(
-            IOptions<EventingOptions> options,
+            IOptions<RabbitMQOptions> options,
             IServiceProvider serviceProvider
         ) {
             if (options == null) {
@@ -39,13 +37,14 @@ namespace Epos.Eventing.RabbitMQ
         }
 
         /// <inheritdoc />
-        public Task<ISubscription> SubscribeAsync<C>(string topic = null) where C : IntegrationCommand {
+        public Task<ISubscription> SubscribeAsync<C>(string? topic = null) where C : IntegrationCommand {
             string theQueueName = $"q-{typeof(C).Name}";
             if (!string.IsNullOrEmpty(topic)) {
                 theQueueName += $"-{topic}";
             }
 
             IModel theChannel = myConnection.CreateModel();
+            theChannel.BasicQos(prefetchSize: 0, prefetchCount: 1, global: false);
             theChannel.QueueDeclare(queue: theQueueName, durable: true, exclusive: false, autoDelete: false);
 
             var theConsumer = new EventingBasicConsumer(theChannel);
@@ -61,20 +60,20 @@ namespace Epos.Eventing.RabbitMQ
 
                 // Wait for handlers to finish
                 while (theHandlerInProgressCount != 0) {
-                    Thread.Sleep(WaitTimeout);
+                    Thread.Sleep(Constants.WaitTimeout);
                 }
 
                 theChannel.Close();
             };
 
-            theConsumer.Received += async (model, ea) => {
+            theConsumer.Received += async (model, args) => {
                 if (theCancellationTokenSource.Token.IsCancellationRequested) {
                     return;
                 }
 
                 Interlocked.Increment(ref theHandlerInProgressCount);
 
-                string theMessage = Encoding.UTF8.GetString(ea.Body);
+                string theMessage = Encoding.UTF8.GetString(args.Body);
                 C theCommand = JsonConvert.DeserializeObject<C>(theMessage);
 
                 using (IServiceScope theScope = myServiceProvider.CreateScope()) {
@@ -92,13 +91,13 @@ namespace Epos.Eventing.RabbitMQ
                         await theHandler.Handle(
                             theCommand,
                             theCancellationTokenSource.Token,
-                            new CommandHelper(
+                            new IntegrationCommandHelper(
                                 ack: () => {
-                                    theChannel.BasicAck(ea.DeliveryTag, multiple: false);
+                                    theChannel.BasicAck(args.DeliveryTag, multiple: false);
                                     return Task.CompletedTask;
                                 }
                             )
-                        );
+                        ).ConfigureAwait(false);
                     } finally {
                         Interlocked.Decrement(ref theHandlerInProgressCount);
                     }

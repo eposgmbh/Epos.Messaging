@@ -1,7 +1,7 @@
 using System;
 using System.Threading.Tasks;
 
-namespace Epos.Eventing
+namespace Epos.Messaging
 {
     /// <summary> Subscribes to integration commands and registers command handlers for them. </summary>
     public interface IIntegrationCommandSubscriber : IDisposable
@@ -10,6 +10,6 @@ namespace Epos.Eventing
         /// <returns>Subscription</returns>
         /// <typeparam name="C">Integration command class</typeparam>
         /// <param name="topic">Topic (optional) to further differentiate the integration command</param>
-        Task<ISubscription> SubscribeAsync<C>(string topic = null) where C : IntegrationCommand;
+        Task<ISubscription> SubscribeAsync<C>(string? topic = null) where C : IntegrationCommand;
     }
 }

@@ -1,6 +1,6 @@
 using Epos.TestUtilities.Docker;
 
-namespace Epos.Eventing.RabbitMQ
+namespace Epos.Messaging.RabbitMQ
 {
     public static class RabbitMQContainer
     {

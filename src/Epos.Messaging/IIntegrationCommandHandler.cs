@@ -1,7 +1,7 @@
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Epos.Eventing
+namespace Epos.Messaging
 {
     /// <summary> Interface for integration command handlers. </summary>
     public interface IIntegrationCommandHandler<C> where C : IntegrationCommand
@@ -12,6 +12,6 @@ namespace Epos.Eventing
         /// <param name="token">Cancellation token</param>
         /// <param name="h">Command helper functionalities</param>
         /// <returns>Task</returns>
-        Task Handle(C c, CancellationToken token, CommandHelper h);
+        Task Handle(C c, CancellationToken token, IIntegrationCommandHelper h);
     }
 }
