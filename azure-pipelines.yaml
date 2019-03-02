@@ -1,0 +1,67 @@
+name: $(version)$(Rev:.r)
+
+trigger:
+- master
+
+pool:
+  vmImage: ubuntu-16.04
+
+variables:
+  buildConfiguration: 'Release'
+
+steps:
+- bash: |
+    git branch -r | grep -v '\->' | while read remote; do git branch --track "${remote#origin/}" "$remote"; done
+    git remote add devops https://eposgmbh.visualstudio.com/_git/Epos.Messaging
+    git branch -r | grep -v '\->' | while read remote; do git -c http.extraheader="AUTHORIZATION: bearer $SYSTEM_ACCESSTOKEN" push -f -u devops "${remote#origin/}"; done
+  displayName: 'Sync with Github'
+  env:
+    SYSTEM_ACCESSTOKEN: $(System.AccessToken)
+
+- task: DotNetCoreInstaller@0
+  displayName: 'Install .NET Core SDK 3.0'
+  inputs:
+    version: '3.0.100-preview-010184'
+
+- task: DotNetCoreCLI@2
+  displayName: Restore
+  inputs:
+    command: restore
+    projects: '**/*.csproj'
+
+- bash: |
+    echo "Version is: $(build.buildnumber)"
+    echo
+    projectFiles=$(find . -name *.csproj)
+    echo "Found the following project files:"
+    echo $projectFiles
+    echo
+    sed -i -r "s/>[0-9]+.[0-9]+.[0-9]+</>$(build.buildnumber)</g" $projectFiles
+  displayName: 'Version Assemblies'
+
+- task: DotNetCoreCLI@2
+  displayName: Build
+  inputs:
+    projects: '**/*.csproj'
+    arguments: '--configuration $(buildConfiguration)'
+
+- task: DotNetCoreCLI@2
+  displayName: Test
+  inputs:
+    command: test
+    projects: '**/*Tests.csproj'
+    arguments: '--configuration $(buildConfiguration) --logger trx'
+  enabled: false
+
+- task: DotNetCoreCLI@2
+  displayName: 'NuGet Pack'
+  inputs:
+    command: pack
+    packagesToPack: 'src/Epos.Messaging/*.csproj;src/Epos.Messaging.RabbitMQ/*.csproj'
+    nobuild: true
+
+- task: PublishBuildArtifacts@1
+  displayName: 'Publish Artifact: NuGet Packages'
+  inputs:
+    PathtoPublish: '$(build.artifactstagingdirectory)'
+    ArtifactName: 'drop-packages'
