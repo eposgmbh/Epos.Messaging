@@ -1,6 +1,6 @@
 # Epos.Messaging
 
-![Build Status](https://eposgmbh.visualstudio.com/Epos.Messaging/_apis/build/status/Epos.Messaging%20Build)
+![Build Status](https://eposgmbh.visualstudio.com/Epos.Messaging/_apis/build/status/Epos.Messaging%20CI)
 [![NuGet](https://img.shields.io/nuget/v/Epos.Messaging.svg)](https://www.nuget.org/packages/Epos.Messaging/)
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Downloads](https://img.shields.io/nuget/dt/Epos.Messaging.svg)

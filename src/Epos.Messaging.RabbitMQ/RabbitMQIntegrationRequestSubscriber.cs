@@ -53,7 +53,7 @@ namespace Epos.Messaging.RabbitMQ
                 exclusive: false,
                 autoDelete: false
             );
-            theChannel.BasicQos(prefetchSize: 0, prefetchCount: 1, global: false);
+            theChannel.BasicQos(prefetchSize: 0, prefetchCount: (ushort) Environment.ProcessorCount, global: false);
 
             var theConsumer = new EventingBasicConsumer(theChannel);
 
@@ -65,7 +65,9 @@ namespace Epos.Messaging.RabbitMQ
             theSubscription.Cancelling += delegate {
                 theCancellationTokenSource.Cancel();
 
-                theChannel.BasicCancel(theConsumer.ConsumerTag);
+                if (myConnection.IsOpen) {
+                    theChannel.BasicCancel(theConsumer.ConsumerTag);
+                }
 
                 // Wait for handlers to finish
                 while (theHandlerInProgressCount != 0) {
@@ -134,6 +136,10 @@ namespace Epos.Messaging.RabbitMQ
         }
 
         /// <inheritdoc />
-        public void Dispose() => myConnection.Close();
+        public void Dispose() {
+            if (myConnection.IsOpen) {
+                myConnection.Close();
+            }
+        }
     }
 }

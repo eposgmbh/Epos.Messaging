@@ -43,7 +43,7 @@ namespace Epos.Messaging.RabbitMQ
                 theRequestReplyQueueName += $"-{request.Topic}";
             }
 
-            IModel theChannel = GetChannel();
+            IModel theChannel = myConnection.CreateModel();
 
             string theReplyQueueName = theChannel.QueueDeclare().QueueName;
             var theConsumer = new EventingBasicConsumer(theChannel);
@@ -62,6 +62,9 @@ namespace Epos.Messaging.RabbitMQ
                     theTaskCompletionSource.SetResult(theReply);
                 } catch (Exception theException) {
                     theTaskCompletionSource.SetException(theException);
+                } finally {
+                    theChannel.QueueDelete(theReplyQueueName, ifUnused: true, ifEmpty: true);
+                    theChannel.Close();
                 }
             };
 
@@ -95,21 +98,10 @@ namespace Epos.Messaging.RabbitMQ
         }
 
         /// <inheritdoc />
-        public void Dispose() => myConnection.Close();
-
-        #region --- Hilfsmethoden ---
-
-        private IModel GetChannel() {
-            int theThreadId = Thread.CurrentThread.ManagedThreadId;
-
-            if (!myChannels.TryGetValue(theThreadId, out IModel theResult)) {
-                theResult = myConnection.CreateModel();
-                myChannels[theThreadId] = theResult;
+        public void Dispose() {
+            if (myConnection.IsOpen) {
+                myConnection.Close();
             }
-
-            return theResult;
         }
-
-        #endregion
     }
 }

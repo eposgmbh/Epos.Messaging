@@ -13,8 +13,7 @@ using RabbitMQ.Client;
 namespace Epos.Messaging.RabbitMQ
 {
     /// <inheritdoc />
-    public class RabbitMQIntegrationCommandPublisher : IIntegrationCommandPublisher
-    {
+    public class RabbitMQIntegrationCommandPublisher : IIntegrationCommandPublisher {
         private readonly IConnection myConnection;
         private readonly ConcurrentDictionary<int, IModel> myChannels;
 
@@ -61,7 +60,11 @@ namespace Epos.Messaging.RabbitMQ
         }
 
         /// <inheritdoc />
-        public void Dispose() => myConnection.Close();
+        public void Dispose() {
+            if (myConnection.IsOpen) {
+                myConnection.Close();
+            }
+        }
 
         #region --- Hilfsmethoden ---
 
