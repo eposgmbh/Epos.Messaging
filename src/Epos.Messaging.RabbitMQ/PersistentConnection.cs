@@ -1,6 +1,6 @@
 using System;
 using System.Net.Sockets;
-
+using System.Threading.Tasks;
 using Polly;
 using Polly.Retry;
 
@@ -30,7 +30,7 @@ namespace Epos.Messaging.RabbitMQ
                 );
 
             IConnection? theConnection = null;
-            thePolicy.Execute(() => theConnection = theConnectionFactory.CreateConnection());
+            thePolicy.Execute(() => theConnection = theConnectionFactory.CreateConnectionAsync().Result);
 
             if (theConnection == null || !theConnection.IsOpen) {
                 throw new InvalidOperationException("RabbitMQ connection could not be created.");

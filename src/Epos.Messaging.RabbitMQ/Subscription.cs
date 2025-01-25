@@ -1,4 +1,6 @@
-using System;
+using System.Threading.Tasks;
+
+using RabbitMQ.Client.Events;
 
 namespace Epos.Messaging.RabbitMQ
 {
@@ -6,11 +8,15 @@ namespace Epos.Messaging.RabbitMQ
     public class Subscription : ISubscription
     {
         /// <inheritdoc />
-        public void Cancel() => Cancelling?.Invoke(this, EventArgs.Empty);
+        public async ValueTask CancelAsync() {
+            if (CancellingAsync is not null) {
+                await CancellingAsync(this, AsyncEventArgs.Empty).ConfigureAwait(false);
+            }
+        }
 
         /// <inheritdoc />
-        public void Dispose() => Cancel();
+        public async ValueTask DisposeAsync() => await CancelAsync();
 
-        internal event EventHandler Cancelling;
+        internal event AsyncEventHandler<AsyncEventArgs>? CancellingAsync;
     }
 }

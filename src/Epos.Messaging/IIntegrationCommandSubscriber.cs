@@ -4,7 +4,7 @@ using System.Threading.Tasks;
 namespace Epos.Messaging
 {
     /// <summary> Subscribes to integration commands and registers command handlers for them. </summary>
-    public interface IIntegrationCommandSubscriber : IDisposable
+    public interface IIntegrationCommandSubscriber : IAsyncDisposable
     {
         /// <summary> Subscribes an integration command and registers its command handler. </summary>
         /// <returns>Subscription</returns>

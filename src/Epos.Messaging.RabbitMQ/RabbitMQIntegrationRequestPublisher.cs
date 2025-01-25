@@ -1,12 +1,10 @@
 using System;
 using System.Collections.Concurrent;
 using System.Text;
-using System.Threading;
+using System.Text.Json;
 using System.Threading.Tasks;
 
 using Microsoft.Extensions.Options;
-
-using Newtonsoft.Json;
 
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
@@ -17,7 +15,7 @@ namespace Epos.Messaging.RabbitMQ
     public class RabbitMQIntegrationRequestPublisher : IIntegrationRequestPublisher
     {
         private readonly IConnection myConnection;
-        private readonly ConcurrentDictionary<int, IModel> myChannels;
+        private readonly ConcurrentDictionary<int, IChannel> myChannels;
 
         /// <summary> Creates an instance of the <b>RabbitMQIntegrationRequestPublisher</b> class. </summary>
         /// <param name="options">Eventing options</param>
@@ -27,7 +25,7 @@ namespace Epos.Messaging.RabbitMQ
             }
 
             myConnection = PersistentConnection.Create(options.Value);
-            myChannels = new ConcurrentDictionary<int, IModel>();
+            myChannels = new ConcurrentDictionary<int, IChannel>();
         }
 
         /// <inheritdoc />
@@ -43,46 +41,56 @@ namespace Epos.Messaging.RabbitMQ
                 theRequestReplyQueueName += $"-{request.Topic}";
             }
 
-            IModel theChannel = myConnection.CreateModel();
+            IChannel theChannel = await myConnection.CreateChannelAsync().ConfigureAwait(false);
 
-            string theReplyQueueName = theChannel.QueueDeclare().QueueName;
-            var theConsumer = new EventingBasicConsumer(theChannel);
+            QueueDeclareOk theQueueDeclareOk = await theChannel.QueueDeclareAsync().ConfigureAwait(false);
 
-            IBasicProperties theProperties = theChannel.CreateBasicProperties();
-            theProperties.ReplyTo = theReplyQueueName;
+            string theReplyQueueName = theQueueDeclareOk.QueueName;
+
+            var theConsumer = new AsyncEventingBasicConsumer(theChannel);
+
+            var theProperties = new BasicProperties {
+                ReplyTo = theReplyQueueName
+            };
 
             var theTaskCompletionSource = new TaskCompletionSource<TReply>();
 
-            theConsumer.Received += (channel, args) => {
-                string theReplyMessage = Encoding.UTF8.GetString(args.Body);
+            theConsumer.ReceivedAsync += async (channel, args) => {
+                string theReplyMessage = Encoding.UTF8.GetString(args.Body.ToArray());
 
                 TReply theReply;
                 try {
-                    theReply = JsonConvert.DeserializeObject<TReply>(theReplyMessage);
+                    theReply = JsonSerializer.Deserialize<TReply>(theReplyMessage)!;
                     theTaskCompletionSource.SetResult(theReply);
                 } catch (Exception theException) {
                     theTaskCompletionSource.SetException(theException);
                 } finally {
-                    theChannel.QueueDelete(theReplyQueueName, ifUnused: true, ifEmpty: true);
-                    theChannel.Close();
+                    await theChannel.QueueDeleteAsync(
+                        queue: theReplyQueueName,
+                        ifUnused: true,
+                        ifEmpty: true
+                    ).ConfigureAwait(false);
+
+                    await theChannel.CloseAsync().ConfigureAwait(false);
                 }
             };
 
-            string theRequestMessage = JsonConvert.SerializeObject(request);
+            string theRequestMessage = JsonSerializer.Serialize(request);
             byte[] theRequestBody = Encoding.UTF8.GetBytes(theRequestMessage);
 
-            theChannel.BasicPublish(
+            await theChannel.BasicPublishAsync(
                 exchange: Constants.DefaultExchangeName,
                 routingKey: theRequestReplyQueueName,
+                mandatory: true,
                 basicProperties: theProperties,
                 body: theRequestBody
-            );
+            ).ConfigureAwait(false);
 
-            theChannel.BasicConsume(
+            await theChannel.BasicConsumeAsync(
                 consumer: theConsumer,
                 queue: theReplyQueueName,
                 autoAck: true
-            );
+            ).ConfigureAwait(false);
 
             var theTimeoutTask = Task.Delay(timeoutSeconds * 1000);
             Task theFirstCompletedTask =
@@ -98,9 +106,9 @@ namespace Epos.Messaging.RabbitMQ
         }
 
         /// <inheritdoc />
-        public void Dispose() {
+        public async ValueTask DisposeAsync() {
             if (myConnection.IsOpen) {
-                myConnection.Close();
+                await myConnection.CloseAsync().ConfigureAwait(false);
             }
         }
     }

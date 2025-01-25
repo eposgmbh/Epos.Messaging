@@ -4,7 +4,7 @@ trigger:
 - master
 
 pool:
-  vmImage: ubuntu-16.04
+  vmImage: ubuntu-20.04
 
 variables:
   buildConfiguration: 'Release'
@@ -19,9 +19,9 @@ steps:
     SYSTEM_ACCESSTOKEN: $(System.AccessToken)
 
 - task: DotNetCoreInstaller@0
-  displayName: 'Install .NET Core SDK 3.0'
+  displayName: 'Install .NET Core SDK 9.0'
   inputs:
-    version: '3.0.100-preview-010184'
+    version: 9.0.x
 
 - task: DotNetCoreCLI@2
   displayName: Restore

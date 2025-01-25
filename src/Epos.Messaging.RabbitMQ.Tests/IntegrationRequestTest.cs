@@ -38,10 +38,10 @@ namespace Epos.Messaging.RabbitMQ
                 await thePublisher.PublishAsync<MyRequest, MyReply>(new MyRequest { Topic = "MyTopic", Number = 5 });
             Assert.That(theReply.DoubledNumber, Is.EqualTo(10));
 
-            theSubscription.Cancel();
-            theSubscriber.Dispose();
+            await theSubscription.CancelAsync();
+            await theSubscriber.DisposeAsync();
 
-            thePublisher.Dispose();
+            await thePublisher.DisposeAsync();
         }
 
         [Test]
@@ -64,10 +64,10 @@ namespace Epos.Messaging.RabbitMQ
                 await thePublisher.PublishAsync<MyRequest, MyReply>(new MyRequest { Number = 5 }, timeoutSeconds: 1);
             });
 
-            theSubscription.Cancel();
-            theSubscriber.Dispose();
+            await theSubscription.CancelAsync();
+            await theSubscriber.DisposeAsync();
 
-            thePublisher.Dispose();
+            await thePublisher.DisposeAsync();
         }
 
         private class MyRequest : IntegrationRequest

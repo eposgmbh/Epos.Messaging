@@ -83,12 +83,12 @@ namespace Epos.Messaging.RabbitMQ
 
             // ---
 
-            theSubscription1.Cancel();
-            theSubscription2.Cancel();
+            await theSubscription1.CancelAsync();
+            await theSubscription2.CancelAsync();
 
-            thePublisher.Dispose();
-            theSubscriber1.Dispose();
-            theSubscriber2.Dispose();
+            await thePublisher.DisposeAsync();
+            await theSubscriber1.DisposeAsync();
+            await theSubscriber2.DisposeAsync();
         }
 
         private class MyIntegrationCommand : IntegrationCommand

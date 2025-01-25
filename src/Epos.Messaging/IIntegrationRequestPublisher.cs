@@ -4,7 +4,7 @@ using System.Threading.Tasks;
 namespace Epos.Messaging
 {
     /// <summary> Publishes an integration request and waits for an asynchronous reply. </summary>
-    public interface IIntegrationRequestPublisher : IDisposable
+    public interface IIntegrationRequestPublisher : IAsyncDisposable
     {
         /// <summary> Publishes a request and waits for an asynchronous reply. </summary>
         /// <remarks> Throws a <see cref="TimeoutException"/>, if no reply is sent in the time set by

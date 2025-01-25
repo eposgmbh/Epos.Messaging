@@ -75,11 +75,11 @@ namespace Microsoft.Extensions.DependencyInjection
                 throw new ArgumentNullException(nameof(integrationCommandHandlerType));
             }
 
-            Type theInterfaceType = integrationCommandHandlerType.GetInterfaces().SingleOrDefault(
+            Type? theInterfaceType = integrationCommandHandlerType.GetInterfaces().SingleOrDefault(
                 i => i.GetGenericTypeDefinition() == typeof(IIntegrationCommandHandler<>)
             );
 
-            if (theInterfaceType == null) {
+            if (theInterfaceType is null) {
                 throw new ArgumentOutOfRangeException(
                     nameof(integrationCommandHandlerType),
                     "The handler must implement the IIntegrationCommandHandler interface."
@@ -111,11 +111,11 @@ namespace Microsoft.Extensions.DependencyInjection
                 throw new ArgumentNullException(nameof(integrationRequestHandlerType));
             }
 
-            Type theInterfaceType = integrationRequestHandlerType.GetInterfaces().SingleOrDefault(
+            Type? theInterfaceType = integrationRequestHandlerType.GetInterfaces().SingleOrDefault(
                 i => i.GetGenericTypeDefinition() == typeof(IIntegrationRequestHandler<,>)
             );
 
-            if (theInterfaceType == null) {
+            if (theInterfaceType is null) {
                 throw new ArgumentOutOfRangeException(
                     nameof(integrationRequestHandlerType),
                     "The handler must implement the IIntegrationRequestHandler interface."

@@ -4,7 +4,7 @@ using System.Threading.Tasks;
 namespace Epos.Messaging
 {
     /// <summary> Subscribes to integration requests and registers request handlers for them. </summary>
-    public interface IIntegrationRequestSubscriber : IDisposable
+    public interface IIntegrationRequestSubscriber : IAsyncDisposable
     {
         /// <summary> Subscribes a request and registers its request handler. </summary>
         /// <returns>Subscription</returns>

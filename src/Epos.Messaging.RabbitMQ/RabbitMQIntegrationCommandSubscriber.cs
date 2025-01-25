@@ -1,5 +1,6 @@
 using System;
 using System.Text;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -7,8 +8,6 @@ using Epos.Utilities;
 
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
-
-using Newtonsoft.Json;
 
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
@@ -37,27 +36,38 @@ namespace Epos.Messaging.RabbitMQ
         }
 
         /// <inheritdoc />
-        public Task<ISubscription> SubscribeAsync<C>(string? topic = null) where C : IntegrationCommand {
+        public async Task<ISubscription> SubscribeAsync<C>(string? topic = null) where C : IntegrationCommand {
             string theQueueName = $"q-{typeof(C).Name}";
             if (!string.IsNullOrEmpty(topic)) {
                 theQueueName += $"-{topic}";
             }
 
-            IModel theChannel = myConnection.CreateModel();
-            theChannel.BasicQos(prefetchSize: 0, prefetchCount: (ushort) Environment.ProcessorCount, global: false);
-            theChannel.QueueDeclare(queue: theQueueName, durable: true, exclusive: false, autoDelete: false);
+            IChannel theChannel = await myConnection.CreateChannelAsync().ConfigureAwait(false);
 
-            var theConsumer = new EventingBasicConsumer(theChannel);
+            await theChannel.BasicQosAsync(
+                prefetchSize: 0,
+                prefetchCount: (ushort) Environment.ProcessorCount,
+                global: false
+            ).ConfigureAwait(false);
+
+            await theChannel.QueueDeclareAsync(
+                queue: theQueueName,
+                durable: true,
+                exclusive: false,
+                autoDelete: false
+            ).ConfigureAwait(false);
+
+            var theConsumer = new AsyncEventingBasicConsumer(theChannel);
             int theHandlerInProgressCount = 0;
 
             var theCancellationTokenSource = new CancellationTokenSource();
 
             var theSubscription = new Subscription();
-            theSubscription.Cancelling += delegate {
+            theSubscription.CancellingAsync += async delegate {
                 theCancellationTokenSource.Cancel();
 
                 if (myConnection.IsOpen) {
-                    theChannel.BasicCancel(theConsumer.ConsumerTag);
+                    await theChannel.BasicCancelAsync(theConsumer.ConsumerTags[0]).ConfigureAwait(false);
                 }
 
                 // Wait for handlers to finish
@@ -65,56 +75,58 @@ namespace Epos.Messaging.RabbitMQ
                     Thread.Sleep(Constants.WaitTimeout);
                 }
 
-                theChannel.Close();
+                await theChannel.CloseAsync().ConfigureAwait(false);
             };
 
-            theConsumer.Received += async (model, args) => {
+            theConsumer.ReceivedAsync += async (model, args) => {
                 if (theCancellationTokenSource.Token.IsCancellationRequested) {
                     return;
                 }
 
                 Interlocked.Increment(ref theHandlerInProgressCount);
 
-                string theMessage = Encoding.UTF8.GetString(args.Body);
-                C theCommand = JsonConvert.DeserializeObject<C>(theMessage);
+                string theMessage = Encoding.UTF8.GetString(args.Body.ToArray());
+                C theCommand = JsonSerializer.Deserialize<C>(theMessage)!;
 
-                using (IServiceScope theScope = myServiceProvider.CreateScope()) {
-                    IIntegrationCommandHandler<C> theHandler =
-                        theScope.ServiceProvider.GetService<IIntegrationCommandHandler<C>>();
+                using IServiceScope theScope = myServiceProvider.CreateScope();
+                IIntegrationCommandHandler<C>? theHandler =
+                    theScope.ServiceProvider.GetService<IIntegrationCommandHandler<C>>();
 
-                    try {
-                        if (theHandler == null) {
-                            throw new InvalidOperationException(
-                                "The service provider does not contain an implementation for " +
-                                typeof(IIntegrationCommandHandler<C>).Dump() + "."
-                            );
-                        }
-
-                        await theHandler.Handle(
-                            theCommand,
-                            theCancellationTokenSource.Token,
-                            new IntegrationCommandHelper(
-                                ack: () => {
-                                    theChannel.BasicAck(args.DeliveryTag, multiple: false);
-                                    return Task.CompletedTask;
-                                }
-                            )
-                        ).ConfigureAwait(false);
-                    } finally {
-                        Interlocked.Decrement(ref theHandlerInProgressCount);
+                try {
+                    if (theHandler == null) {
+                        throw new InvalidOperationException(
+                            "The service provider does not contain an implementation for " +
+                            typeof(IIntegrationCommandHandler<C>).Dump() + "."
+                        );
                     }
+
+                    await theHandler.Handle(
+                        theCommand,
+                        theCancellationTokenSource.Token,
+                        new IntegrationCommandHelper(
+                            ack: async () => {
+                                await theChannel.BasicAckAsync(args.DeliveryTag, multiple: false).ConfigureAwait(false);
+                            }
+                        )
+                    ).ConfigureAwait(false);
+                } finally {
+                    Interlocked.Decrement(ref theHandlerInProgressCount);
                 }
             };
 
-            theChannel.BasicConsume(queue: theQueueName, autoAck: false, consumer: theConsumer);
+            await theChannel.BasicConsumeAsync(
+                queue: theQueueName,
+                autoAck: false,
+                consumer: theConsumer
+            ).ConfigureAwait(false);
 
-            return Task.FromResult((ISubscription) theSubscription);
+            return theSubscription;
         }
 
         /// <inheritdoc />
-        public void Dispose() {
+        public async ValueTask DisposeAsync() {
             if (myConnection.IsOpen) {
-                myConnection.Close();
+                await myConnection.CloseAsync().ConfigureAwait(false);
             }
         }
     }

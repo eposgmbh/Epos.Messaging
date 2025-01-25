@@ -4,7 +4,7 @@ using System.Threading.Tasks;
 namespace Epos.Messaging
 {
     /// <summary> Publishes integration commands. </summary>
-    public interface IIntegrationCommandPublisher : IDisposable
+    public interface IIntegrationCommandPublisher : IAsyncDisposable
     {
         /// <summary> Publishes an integration command. </summary>
         /// <typeparam name="C">Integration command class</typeparam>
