@@ -10,14 +10,6 @@ variables:
   buildConfiguration: 'Release'
 
 steps:
-- bash: |
-    git branch -r | grep -v '\->' | while read remote; do git branch --track "${remote#origin/}" "$remote"; done
-    git remote add devops https://eposgmbh.visualstudio.com/_git/Epos.Messaging
-    git branch -r | grep -v '\->' | while read remote; do git -c http.extraheader="AUTHORIZATION: bearer $SYSTEM_ACCESSTOKEN" push -f -u devops "${remote#origin/}"; done
-  displayName: 'Sync with Github'
-  env:
-    SYSTEM_ACCESSTOKEN: $(System.AccessToken)
-
 - task: DotNetCoreInstaller@0
   displayName: 'Install .NET Core SDK 9.0'
   inputs:
