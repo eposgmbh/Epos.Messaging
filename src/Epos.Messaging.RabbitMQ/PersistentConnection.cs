@@ -16,6 +16,7 @@ namespace Epos.Messaging.RabbitMQ
         public static IConnection Create(RabbitMQOptions options) {
             var theConnectionFactory = new ConnectionFactory {
                 AutomaticRecoveryEnabled = true,
+                ConsumerDispatchConcurrency = (ushort) Environment.ProcessorCount,
                 HostName = options.Hostname,
                 UserName = options.Username,
                 Password = options.Password
