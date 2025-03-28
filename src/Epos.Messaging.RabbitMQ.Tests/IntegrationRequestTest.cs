@@ -12,15 +12,11 @@ namespace Epos.Messaging.RabbitMQ
     [TestFixture]
     public class IntegrationRequestTest
     {
-        [SetUp]
-        public void InitContainer() => RabbitMQContainer.Start();
-
-        [TearDown]
-        public void RemoveContainer() => RabbitMQContainer.ForceRemove();
-
         [Test]
         public async Task RequestAndReplies() {
-            var theOptions = new OptionsWrapper<RabbitMQOptions>(RabbitMQOptions.Default);
+            var theOptions = new OptionsWrapper<RabbitMQOptions>(new RabbitMQOptions {
+                ConnectionString = OneTimeTestFixture.RabbitMQContainer.ConnectionString
+            });
 
             var thePublisher = new RabbitMQIntegrationRequestPublisher(theOptions);
 
@@ -46,7 +42,9 @@ namespace Epos.Messaging.RabbitMQ
 
         [Test]
         public async Task Timeout() {
-            var theOptions = new OptionsWrapper<RabbitMQOptions>(RabbitMQOptions.Default);
+            var theOptions = new OptionsWrapper<RabbitMQOptions>(new RabbitMQOptions {
+                ConnectionString = OneTimeTestFixture.RabbitMQContainer.ConnectionString
+            });
 
             var thePublisher = new RabbitMQIntegrationRequestPublisher(theOptions);
 

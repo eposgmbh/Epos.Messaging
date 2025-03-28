@@ -17,9 +17,7 @@ namespace Epos.Messaging.RabbitMQ
             var theConnectionFactory = new ConnectionFactory {
                 AutomaticRecoveryEnabled = true,
                 ConsumerDispatchConcurrency = (ushort) Environment.ProcessorCount,
-                HostName = options.Hostname,
-                UserName = options.Username,
-                Password = options.Password
+                Uri = new Uri(options.ConnectionString)
             };
 
             RetryPolicy thePolicy = Policy

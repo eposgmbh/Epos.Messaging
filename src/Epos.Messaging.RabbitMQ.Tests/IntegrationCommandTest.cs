@@ -12,15 +12,11 @@ namespace Epos.Messaging.RabbitMQ
     [TestFixture]
     public class IntegrationCommandTest
     {
-        [SetUp]
-        public void InitContainer() => RabbitMQContainer.Start();
-
-        [TearDown]
-        public void RemoveContainer() => RabbitMQContainer.ForceRemove();
-
         [Test]
         public async Task IntegrationCommands() {
-            var theOptions = new OptionsWrapper<RabbitMQOptions>(RabbitMQOptions.Default);
+            var theOptions = new OptionsWrapper<RabbitMQOptions>(new RabbitMQOptions {
+                ConnectionString = OneTimeTestFixture.RabbitMQContainer.ConnectionString
+            });
 
             var thePublisher = new RabbitMQIntegrationCommandPublisher(theOptions);
 
