@@ -14,7 +14,7 @@ namespace Epos.Messaging.RabbitMQ
     {
         [Test]
         public async Task IntegrationCommands() {
-            var theOptions = new OptionsWrapper<RabbitMQOptions>(new RabbitMQOptions {
+            IOptions<RabbitMQOptions> theOptions = Options.Create(new RabbitMQOptions {
                 ConnectionString = OneTimeTestFixture.RabbitMQContainer.ConnectionString
             });
 

@@ -32,7 +32,7 @@ public static class EposMessagingServiceCollectionExtensions
             string connectionString = configuration.GetConnectionString(connectionName)
                 ?? throw new InvalidOperationException($"Connection string '{connectionName}' not found.");
 
-            services.AddSingleton(new RabbitMQOptions { ConnectionString = connectionString });
+            services.Configure<RabbitMQOptions>(options => options.ConnectionString = connectionString);
 
             scope.ServiceProvider.GetRequiredService<RabbitMQEventSourceLogForwarder>().Start();
         }

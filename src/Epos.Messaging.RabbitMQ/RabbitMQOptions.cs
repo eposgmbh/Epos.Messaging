@@ -7,6 +7,6 @@ namespace Epos.Messaging.RabbitMQ
         public static readonly RabbitMQOptions Default = new();
 
         /// <summary> Gets or sets the connection string. </summary>
-        public string ConnectionString { get; init; } = "amqp://guest:guest@localhost:5672";
+        public string ConnectionString { get; set; } = "amqp://guest:guest@localhost:5672";
     }
 }

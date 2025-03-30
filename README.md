@@ -52,11 +52,7 @@ public class NoteAddedIntegrationCommand : IntegrationCommand
 // Startup.cs
 
 services.AddIntegrationCommandPublisherRabbitMQ();
-services.Configure<RabbitMQOptions>(options => {
-    options.Hostname = "localhost";
-    opions.Username = "guest";
-    options.Password = "guest";
-});
+services.AddSingleton(RabbitMQOptions.Default); // <- connects to localhost:5672
 
 // NoteController.cs
 
@@ -107,11 +103,7 @@ public class NoteAddedCommandHandler : IIntegrationCommandHandler<NoteAddedInteg
 // Startup.cs
 
 services.AddIntegrationCommandSubscriberRabbitMQ();
-services.Configure<RabbitMQOptions>(options => {
-    options.Hostname = "localhost";
-    opions.Username = "guest";
-    options.Password = "guest";
-});
+services.AddSingleton(RabbitMQOptions.Default);
 services.AddIntegrationCommandHandler<NoteAddedCommandHandler>();
 
 // App code (e.g. in Program.cs before IHost.Run)
@@ -146,11 +138,7 @@ public class CalculationReply : IntegrationReply
 // Startup.cs
 
 services.AddIntegrationRequestPublisherRabbitMQ();
-services.Configure<RabbitMQOptions>(options => {
-    options.Hostname = "localhost";
-    opions.Username = "guest";
-    options.Password = "guest";
-});
+services.AddSingleton(RabbitMQOptions.Default);
 
 // CalculationController.cs
 
@@ -198,11 +186,7 @@ public class CalculationRequestHandler : IIntegrationRequestHandler<CalculationR
 // Startup.cs
 
 services.AddIntegrationRequestSubscriberRabbitMQ();
-services.Configure<RabbitMQOptions>(options => {
-    options.Hostname = "localhost";
-    opions.Username = "guest";
-    options.Password = "guest";
-});
+services.AddSingleton(RabbitMQOptions.Default);
 services.AddIntegrationRequestHandler<CalculationRequestHandler>();
 
 // App code (e.g. in Program.cs before IHost.Run)
