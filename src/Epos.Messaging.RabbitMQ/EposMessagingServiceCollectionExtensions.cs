@@ -1,12 +1,15 @@
+// https://github.com/rabbitmq/rabbitmq-dotnet-client/tree/main/projects/RabbitMQ.Client.OpenTelemetry
+
 using System;
-using System.Collections.Generic;
-using System.Diagnostics.Tracing;
 using System.Linq;
 
 using Epos.Messaging;
 using Epos.Messaging.RabbitMQ;
 
 using Microsoft.Extensions.Configuration;
+using OpenTelemetry;
+using OpenTelemetry.Context.Propagation;
+using OpenTelemetry.Trace;
 
 namespace Microsoft.Extensions.DependencyInjection;
 
@@ -24,8 +27,6 @@ public static class EposMessagingServiceCollectionExtensions
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(connectionName);
 
-        services.AddSingleton<RabbitMQEventSourceLogForwarder>();
-
         using (IServiceScope scope = services.BuildServiceProvider().CreateScope()) {
             IConfiguration configuration = scope.ServiceProvider.GetRequiredService<IConfiguration>();
 
@@ -33,9 +34,17 @@ public static class EposMessagingServiceCollectionExtensions
                 ?? throw new InvalidOperationException($"Connection string '{connectionName}' not found.");
 
             services.Configure<RabbitMQOptions>(options => options.ConnectionString = connectionString);
-
-            scope.ServiceProvider.GetRequiredService<RabbitMQEventSourceLogForwarder>().Start();
         }
+
+
+        Sdk.SetDefaultTextMapPropagator(new CompositeTextMapPropagator(
+            [new TraceContextPropagator(), new BaggagePropagator()]));
+
+        services
+            .AddOpenTelemetry()
+            .WithTracing(tracerBuilderProvider => {
+                tracerBuilderProvider.AddRabbitMQInstrumentation();
+            });
 
         services.AddIntegrationCommandPublisherRabbitMQ();
         services.AddIntegrationCommandSubscriberRabbitMQ();
